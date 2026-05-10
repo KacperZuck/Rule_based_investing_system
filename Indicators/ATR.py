@@ -1,10 +1,7 @@
 import pandas as pd
 import numpy as np
-from plotly import hist_frame
-
 from Indicators.SMA import SMA
 from Indicators.INDICATOR import Indicator
-from maps import *
 
 
 class ATR(Indicator):

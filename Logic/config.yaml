@@ -12,15 +12,41 @@ types_of_indicators:
   - {type: "RSI", params: [14]}
   - {type: "ATR", params: [14], source: "OHLC"} ## sprawdzic N
   - {type: "ROC", params: [10]}
-  - {type: "precent_R", params: [14], source: "OHLC"}
+  - {type: "William_pR", params: [14], source: "OHLC"}
   - {type: "ULT", params: [7,14,28], source: "OHLC"} ##
   - {type: "MFI", params:[14], source: "ALL"}
   - {type: "TRIX", params:[18]}
   - {type: "BOP", params: [14], source: "OHLC"}
   - {type: "BB", params: [20,2]}
 ##  - EKSPERYMENTALNIE
-##  - {type: "MACD", params:[12,26,9], source: "CUSTOM", colums: ["EMA12", "EMA26"]} # DO ZROBIENIA
+##  - {type: "MACD", params:[12,26,9]} # DO ZROBIENIA
 
-#basic_trading_strategies:
-#  - {name: "MACD", type: "MACD_CROSS", fast: "MACD12_Line", slow: "MACD12_Signal"}
-#  - {name: "RSI", type: "RSI_LEVEL", col: "RSI14", overbought: 70, oversold: 30}
+basic_trading_strategies:
+  - name: "RSI"
+    threshold_buy: 0.8
+    threshold_sell: -0.8
+    signals:
+      - type: "RSI"
+        params: [14]
+        logic: "THRESHOLD"
+        logic_params: {low: 30, high: 70}
+  - name: "EMA"
+    threshold_buy: 0.8
+    threshold_sell: -0.8
+    signals:
+      - type: "EMA"
+        params: [9]
+        logic: "CROSSOVER"
+        logic_params: {target: "SMA[20]"}
+  - name: "MACD"
+    threshold_buy: 0.8
+    threshold_sell: -0.8
+    signals:
+      - type: "EMA"
+        params: [12]
+        logic: "CROSSOVER"
+        logic_params: {target: "EMA[26]"}
+      - type: "RSI"
+        params: [14]
+        logic: "THRESHOLD"
+        logic_params: {low: 40, high: 60}

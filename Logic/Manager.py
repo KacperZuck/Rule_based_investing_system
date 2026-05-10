@@ -1,22 +1,21 @@
-import json
 import os
-from time import sleep
-
-from Indicators.INDICATOR import Indicator
+import yaml
 from Logic.strategy import Strategy
-from maps import *
+from Logic.maps import get_source_cols
+from Logic.indicator_map import INDICATOR_MAP
 import pandas as pd
 import time
 
 class Manager():
-    def __init__(self, config, path):
+    def __init__(self, path=None, config=None):
         self.indicators = {}
         self.strategies = {}
         self.df_data = pd.DataFrame()
         self.df_signals = pd.DataFrame()
+        self.df_strategy_results = pd.DataFrame()
 
         if path and os.path.exists(path):
-            self.load_config(config)
+            self.load_config(path)
         if config:
             self.setup_fromInit(config)
 
@@ -33,7 +32,8 @@ class Manager():
         unique_name = f"{type}{params}"
 
         if unique_name not in self.indicators:
-            i_class = INDICATOR_MAP[type]
+            i_class = INDICATOR_MAP.get(type)
+            columns = get_source_cols(columns)
             self.indicators[unique_name] = i_class(unique_name, params, columns)
 
         return self.indicators[unique_name]
@@ -46,7 +46,7 @@ class Manager():
         self.df_data = pd.concat(data, axis=1)
         return self.df_data
 
-    def calculate_signal(self, price_df):
+    def calculate_signals(self, price_df):
 
         signals_data = pd.DataFrame(index=price_df.index)
 
@@ -54,20 +54,28 @@ class Manager():
             for config in strategy.signal_configs:
                 i_name = f"{config['type']}{config['params']}"
                 i = self.indicators[i_name]
+
                 i.add_signal(config['logic'], config['logic_params'], self.df_data)
 
-                new_name = f"{i_name}_signal"
-                signals_data[new_name] = i.results[new_name] #TODO IDK CZY DOBRZE
+                sig_col_name = f"{i_name}_signal"
+
+                if isinstance(i.results, pd.DataFrame) and sig_col_name in i.results.columns:
+                    signals_data[sig_col_name] = i.results[sig_col_name]
+                elif isinstance(i.results, pd.Series) and i.results.name == sig_col_name:
+                    signals_data[sig_col_name] = i.results
+                else:
+                    print(f"Ostrzeżenie: Format wyników dla {i_name} jest nietypowy.")
+                    signals_data[sig_col_name] = 0
 
         final_signals = pd.DataFrame(index=price_df.index)
-        temp_combined = pd.concat([self.df_data, signals_data], axis=1)
 
-        for strat_name, strategy in self.strategies.items():
-            final_signals[strategy.name] = strategy.run_voting(temp_combined)
+        for name, strategy in self.strategies.items():
+            final_signals[strategy.name] = strategy.run_voting(signals_data)
 
-        #TODO ZMIANA ABY FINAL VOTE BYL W INNEJ KOLUMNIE DLA STRATEGII, NIE ZLICZAL W SYGNALACH
-        self.df_signals = pd.concat([signals_data, final_signals], axis=1)
-        return self.df_signals
+        self.df_signals = signals_data
+        self.df_strategy_results = final_signals
+
+        return self.df_strategy_results
 
     def calculate_new_candle(self, df):
         data = [df]
@@ -77,7 +85,23 @@ class Manager():
 
         new_candle = pd.concat(data, axis=1)
         self.df_data = pd.concat([self.df_data, new_candle], axis=1)
-        return new_candle
+        # sygnaly
+        new_signals = pd.DataFrame(index=df.index)
+        for strat_name, strategy in self.strategies.items():
+            for config in strategy.signal_configs:
+                i_name = f"{config['type']}{config['params']}"
+                i = self.indicators[i_name]
+
+                i.add_signal(config['logic'], config['logic_params'], self.df_data)
+                signal_name = f"{i_name}_signal"
+                new_signals[signal_name] = i.results[signal_name].iloc[[-1]]
+
+        new_vote = pd.DataFrame(index=df.index)
+        for strat_name, strategy in self.strategies.items():
+            new_vote[strategy.name] = strategy.run_voting(new_signals)
+
+        self.df_strategy_results = pd.concat([self.df_strategy_results, new_vote], axis=1)
+        return new_vote
 
     def simulate_newdata_for_all(self, Simulation):
         index = 1
@@ -101,15 +125,25 @@ class Manager():
             self.get_or_create_indicator(
                 config['type'],
                 config['params'],
-                config.get('columns', "CLOSE")
+                config.get('source', "CLOSE")
             )
 
     def load_config(self, path):
         with open(path, "r") as f:
-            data = json.load(f)
-        for strategy in data.get("strategies", []):
+            data = yaml.safe_load(f)
+
+        for indicator_config in data.get('types_of_indicators', []):
+            self.get_or_create_indicator(
+                indicator_config['type'],
+                indicator_config['params'],
+                indicator_config.get('source', "CLOSE")
+            )
+        for strategy in data.get('basic_trading_strategies', []):
             self.add_strategy(
-                strategy['name'], strategy['signals_config'], strategy['th_buy', 1.0], strategy['th_sell',-1.0]
+                strategy['name'],
+                strategy['signals'],
+                strategy['threshold_buy'],
+                strategy['threshold_sell']
             )
 
     def save_config(self, path):
@@ -118,10 +152,10 @@ class Manager():
                 {
                     "name": strategy.name,
                     "signals_config": strategy.signals_config,
-                    "th_buy": strategy.th_buy,
-                    "th_sell": strategy.th_sell
+                    "threshold_buy": strategy.th_buy,
+                    "threshold_sell": strategy.th_sell
                 } for strategy in self.strategies.values()
             ]
         }
         with open(path, "w") as f:
-            json.dump(config, f)
+            yaml.dump(config, f)

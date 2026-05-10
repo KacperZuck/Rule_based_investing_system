@@ -1,6 +1,6 @@
 from plotly.subplots import make_subplots
 
-from maps import CANDLESTICK
+from Logic.maps import CANDLESTICK
 
 
 def plot_data(df):

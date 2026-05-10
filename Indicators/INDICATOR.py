@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from maps import *
+from Logic.maps import SIGNALS_MAP, BUY, SELL, NEUTRAL
 
 class Indicator:
     def __init__(self,name,params,columns):
@@ -34,34 +34,40 @@ class Indicator:
 
     # --- PRYWATNE METODY LOGIKI ---
 
-    def _logic_threshold(self, p, all_results):
+    def logic_threshold(self, p, all_results):
         """Logika progowa: RSI < 30 itd."""
-        series = self.results[self.name]
+        if isinstance(self.results, pd.DataFrame):
+            series = self.results[self.name]
+        else:
+            series = self.results
         low = p.get('low', -np.inf)
         high = p.get('high', np.inf)
 
         conds = [(series < low), (series > high)]
         return np.select(conds, [BUY, SELL], default=NEUTRAL)
 
-    def _logic_crossover(self, p, all_results):
+    def logic_crossover(self, p, all_results):
         """Logika przecięcia: Ten wskaźnik vs Inny wskaźnik"""
-        line_a = self.results[self.name]
+        if isinstance(self.results, pd.DataFrame):
+            line_a = self.results[self.name].squeeze()
+        else:
+            line_a = self.results.squeeze()
         target_name = p.get('target')  # np. "SMA50"
 
-        # Szukamy wartości drugiego wskaźnika
         if all_results is not None and target_name in all_results.columns:
             line_b = all_results[target_name]
         else:
-            # Jeśli nie podano all_results lub nie ma tam wskaźnika,
-            # może to być wartość stała podana w parametrach
             line_b = p.get('value', 0)
+        if isinstance(line_b, pd.Series):
+            line_b = line_b.reindex(line_a.index)
 
-        # Przecięcie: 1 gdy A przecina B od dołu, -1 gdy od góry
         prev_a = line_a.shift(1)
         prev_b = line_b.shift(1) if isinstance(line_b, pd.Series) else line_b
 
-        conds = [
-            (line_a > line_b) & (prev_a <= prev_b),
-            (line_a < line_b) & (prev_a >= prev_b)
-        ]
-        return np.select(conds, [BUY, SELL], default=NEUTRAL)
+        valid_mask = line_a.notna() & (line_b.notna() if isinstance(line_b, pd.Series) else True)
+
+        cond_buy = (line_a > line_b) & (prev_a <= prev_b) & valid_mask
+        cond_sell = (line_a < line_b) & (prev_a >= prev_b) & valid_mask
+
+        res_array = np.select([cond_buy, cond_sell], [BUY, SELL], default=NEUTRAL)
+        return pd.Series(res_array, index=line_a.index)

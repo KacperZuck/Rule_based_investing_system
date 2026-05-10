@@ -1,33 +1,35 @@
 import pandas as pd
-#import seaborn as sns
-#import matplotlib as mpl
-import yaml
-
 from Logic.Manager import Manager
+# import yfinance as yf # DANE DO POBRANIA
 
 Range = 200
 Simulation = 100
+Config_path = "Logic/config.yaml"
 
-if __name__ == "__main__":
-    with open("Logic/config.yaml", "r") as f:
-        config = yaml.safe_load(f)
+def main():
+    # with open("Logic/config.yaml", "r") as f:
+    #     config = yaml.safe_load(f)
     df_export = pd.read_csv("Data/ndaq_us.csv").tail(Range)
 
-
     print("\nInicjacja menagera__:")
-    manager = Manager(config["types_of_indicators"])
+    manager = Manager(Config_path)
 
     print("\nObliczanie wskaźników__:")
-    df_final = manager.calculate(df_export.head(Range-Simulation))
+    df = manager.calculate(df_export.head(Range-Simulation))
 
-    print("\nWyswietlenie obliczen__:")
-    print(df_final.tail())
+    print("\nObliczanie sygnalow__:")
+    df_strategy = manager.calculate_signals(df_export.head(Range-Simulation))
 
+    print("\nWyswietlenie strategi__:")
+    print(df_strategy.tail(Range-Simulation), "\n", df)
     # plot_data(df_final)
     # irl
-    print("Real data simulation__:")
+    print("\nWyswietlanie symulacji live data__:")
     data_simulation = df_export.tail(Simulation)
     manager.simulate_newdata_for_all( data_simulation)
+
+if __name__ == "__main__":
+    main()
 
     # for new_tick in Simulation:
     # #     new_candle = get_new_candle_from_exchange()
