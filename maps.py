@@ -34,11 +34,11 @@ CANDLESTICK ={
 INDICATOR_MAP = {
     # "SMA": SMA, git
     # "EMA": EMA, git
-    # "RSI": RSI,
+    "RSI": RSI,
     # "MACD": MACD,
-    # "ADX": ADX,
-    # "STOCH": STOCH,
-    # "ATR": ATR, git
+    "ADX": ADX,
+    "STOCH": STOCH,
+    "ATR": ATR,
     "ROC": ROC,
     "William_pR": William_pR,
     "ULT": ULT,

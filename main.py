@@ -3,7 +3,7 @@ import pandas as pd
 #import matplotlib as mpl
 import yaml
 
-from Logic.manager import Manager
+from Logic.Manager import Manager
 
 Range = 200
 Simulation = 100

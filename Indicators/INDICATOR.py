@@ -65,24 +65,3 @@ class Indicator:
             (line_a < line_b) & (prev_a >= prev_b)
         ]
         return np.select(conds, [BUY, SELL], default=NEUTRAL)
-
-    # def set_signal(self, type, signal_params):
-    #     " type z SIGNAL_MAP, signal_params dla wybranych parametrow"
-    #
-    #     if self.results is None:
-    #         return
-    #
-    #     data_col = self.results[self.name]
-    #     signal_col = f"{self.name}_signal"
-    #
-    #     if type == "CROSSOVER":
-    #         for signal in self.results.columns:
-    #             cross = self.results[signal]
-    #             self.results[signal_col] = np.where(data_col > cross)
-    #     elif type == "THRESHOLD":
-    #         maxline = signal_params.get("maxline", np.inf)
-    #         minline = signal_params.get("minline", -np.inf)
-    #         condition = [ (data_col > maxline), (data_col < minline) ]
-    #         value = [-1,1]
-    #         self.results[signal_col] = np.select(condition, value, default=0)
-    #     return self.results
