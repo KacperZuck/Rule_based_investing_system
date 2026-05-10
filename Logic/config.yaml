@@ -1,0 +1,43 @@
+
+settings:
+  columns_mapping: "CANDLESTICK"
+
+types_of_indicators:
+  - {type: "SMA", params: [20]}
+  - {type: "EMA", params: [9]}
+  - {type: "EMA", params: [12]}
+  - {type: "EMA", params: [26]}
+  - {type: "ADX", params: [14], source: "OHLC"} ##
+  - {type: "STOCH", params: [14,3,3], source: "OHLC"}
+  - {type: "RSI", params: [14]}
+  - {type: "ATR", params: [14], source: "OHLC"} ## sprawdzic N
+  - {type: "ROC", params: [10]}
+  - {type: "precent_R", params: [14], source: "OHLC"}
+  - {type: "ULT", params: [7,14,28], source: "OHLC"} ##
+  - {type: "MFI", params:[14], source: "ALL"}
+  - {type: "TRIX", params:[18]}
+  - {type: "BOP", params: [14], source: "OHLC"}
+  - {type: "BB", params: [20,2]}
+##  - EKSPERYMENTALNIE
+##  - {type: "MACD", params:[12,26,9], source: "CUSTOM", colums: ["EMA12", "EMA26"]} # DO ZROBIENIA
+
+#trading_rules:
+#  - {name: "Entry_MACD", type: "MACD_CROSS", fast: "MACD12_Line", slow: "MACD12_Signal"}
+#  - {name: "Entry_RSI", type: "RSI_LEVEL", col: "RSI14", overbought: 70, oversold: 30}
+
+#df = pd.concat([df, MACD.count( df[["EMA 12", "EMA 26"]]) ], axis=1)
+#df = pd.concat([df, SMA.count(df_export, 20)], axis=1)
+#df = pd.concat([df, EMA.count( df_export,9)], axis=1) # SIGNAL
+#df = pd.concat([df, EMA.count( df_export,12)], axis=1)
+#df = pd.concat([df, EMA.count( df_export,26)], axis=1)
+#df = pd.concat([df, STOCH.count( df_export) ], axis=1) # axis =1 oznacza doklejenie kolumny
+#df = pd.concat([df, RSI.count(df_export)],axis=1)
+#df = pd.concat([df, ADX.count(df[["Najwyzszy","Najnizszy","Zamkniecie"]])], axis=1)
+#df = pd.concat([df, ATR.count(df[["Najwyzszy","Najnizszy","Zamkniecie"]])], axis=1)
+#df = pd.concat([df, ROC.count(df_export)], axis=1)
+#df = pd.concat([df, precent_R.count(df[["Najwyzszy","Najnizszy","Zamkniecie"]])], axis=1)
+#df = pd.concat([df, ULT.count(df[["Najwyzszy","Najnizszy","Zamkniecie"]])], axis=1)
+#df = pd.concat([df, MFI.count(df)], axis=1)
+#df = pd.concat([df, TRIX.count( df_export)], axis=1)
+#df = pd.concat([df, BOP.count(df)], axis=1)
+#df = pd.concat([df, BB.count(df_export)], axis=1 )   # potrzebne 3 kolumny
