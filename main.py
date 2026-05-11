@@ -3,7 +3,7 @@ from Logic.Manager import Manager
 # import yfinance as yf # DANE DO POBRANIA
 
 Range = 200
-Simulation = 100
+Simulation = 50
 Config_path = "Logic/config.yaml"
 
 def main():
@@ -27,6 +27,8 @@ def main():
     print("\nWyswietlanie symulacji live data__:")
     data_simulation = df_export.tail(Simulation)
     manager.simulate_newdata_for_all( data_simulation)
+
+    manager.save_config(Config_path)
 
 if __name__ == "__main__":
     main()

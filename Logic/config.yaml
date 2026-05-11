@@ -24,7 +24,7 @@ types_of_indicators:
 basic_trading_strategies:
   - name: "RSI"
     threshold_buy: 0.8
-    threshold_sell: -0.8
+    threshold_sell: 0.8
     signals:
       - type: "RSI"
         params: [14]
@@ -32,21 +32,9 @@ basic_trading_strategies:
         logic_params: {low: 30, high: 70}
   - name: "EMA"
     threshold_buy: 0.8
-    threshold_sell: -0.8
+    threshold_sell: 0.8
     signals:
       - type: "EMA"
         params: [9]
         logic: "CROSSOVER"
         logic_params: {target: "SMA[20]"}
-  - name: "MACD"
-    threshold_buy: 0.8
-    threshold_sell: -0.8
-    signals:
-      - type: "EMA"
-        params: [12]
-        logic: "CROSSOVER"
-        logic_params: {target: "EMA[26]"}
-      - type: "RSI"
-        params: [14]
-        logic: "THRESHOLD"
-        logic_params: {low: 40, high: 60}

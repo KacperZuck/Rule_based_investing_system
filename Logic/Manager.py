@@ -5,6 +5,7 @@ from Logic.maps import get_source_cols
 from Logic.indicator_map import INDICATOR_MAP
 import pandas as pd
 import time
+import json
 
 class Manager():
     def __init__(self, path=None, config=None):
@@ -51,68 +52,119 @@ class Manager():
         signals_data = pd.DataFrame(index=price_df.index)
 
         for name, strategy in self.strategies.items():
+
             for config in strategy.signal_configs:
+
                 i_name = f"{config['type']}{config['params']}"
+
                 i = self.indicators[i_name]
 
-                i.add_signal(config['logic'], config['logic_params'], self.df_data)
+                i.add_signal(
+                    config['logic'],
+                    config['logic_params'],
+                    self.df_data
+                )
 
                 sig_col_name = f"{i_name}_signal"
 
-                if isinstance(i.results, pd.DataFrame) and sig_col_name in i.results.columns:
+                if (
+                        isinstance(i.results, pd.DataFrame)
+                        and sig_col_name in i.results.columns
+                ):
+
                     signals_data[sig_col_name] = i.results[sig_col_name]
-                elif isinstance(i.results, pd.Series) and i.results.name == sig_col_name:
+
+                elif (
+                        isinstance(i.results, pd.Series)
+                        and i.results.name == sig_col_name
+                ):
+
                     signals_data[sig_col_name] = i.results
+
                 else:
-                    print(f"Ostrzeżenie: Format wyników dla {i_name} jest nietypowy.")
+
+                    print(
+                        f"Ostrzeżenie: "
+                        f"Format wyników dla {i_name} jest nietypowy."
+                    )
+
                     signals_data[sig_col_name] = 0
 
         final_signals = pd.DataFrame(index=price_df.index)
 
         for name, strategy in self.strategies.items():
-            final_signals[strategy.name] = strategy.run_voting(signals_data)
+            final_signals[strategy.name] = (
+                strategy.run_voting(signals_data)
+            )
 
         self.df_signals = signals_data
+
         self.df_strategy_results = final_signals
 
         return self.df_strategy_results
 
     def calculate_new_candle(self, df):
-        data = [df]
-        for name,i in self.indicators.items():
-            print(f"    {name}__:")
-            data.append(i.update(df))
+        new_values = []
 
-        new_candle = pd.concat(data, axis=1)
-        self.df_data = pd.concat([self.df_data, new_candle], axis=1)
-        # sygnaly
+        for name, i in self.indicators.items():
+            new_values.append(i.update(df))
+
+        new_candle = pd.concat([df] + new_values, axis=1)
+
+        self.df_data = pd.concat(
+            [self.df_data, new_candle],axis=0
+        ).sort_index()
+
         new_signals = pd.DataFrame(index=df.index)
+
         for strat_name, strategy in self.strategies.items():
+
             for config in strategy.signal_configs:
                 i_name = f"{config['type']}{config['params']}"
                 i = self.indicators[i_name]
 
-                i.add_signal(config['logic'], config['logic_params'], self.df_data)
+                print(f"    {i.name}__:")
+                signal_update = i.update_signal(
+                    config['logic'],
+                    config['logic_params'],
+                    self.df_data
+                )
+
                 signal_name = f"{i_name}_signal"
-                new_signals[signal_name] = i.results[signal_name].iloc[[-1]]
+                new_signals.at[
+                    df.index[0],
+                    signal_name
+                ] = signal_update.iat[0, 0]
+
+        self.df_signals = pd.concat(
+            [self.df_signals, new_signals],
+            axis=0
+        )
 
         new_vote = pd.DataFrame(index=df.index)
-        for strat_name, strategy in self.strategies.items():
-            new_vote[strategy.name] = strategy.run_voting(new_signals)
 
-        self.df_strategy_results = pd.concat([self.df_strategy_results, new_vote], axis=1)
+        for strat_name, strategy in self.strategies.items():
+            vote_result = strategy.run_voting(
+                self.df_signals
+            )
+
+            new_vote[strategy.name] = vote_result.iloc[-1]
+
+        self.df_strategy_results = pd.concat(
+            [self.df_strategy_results, new_vote],
+            axis=0
+        )
+
         return new_vote
 
     def simulate_newdata_for_all(self, Simulation):
-        index = 1
         for new_tick in range(len(Simulation)):
-            print(f"Testing {index} new row__:")
+            print(f"Testing {new_tick} new candle__:")
             new_indicators_row = self.calculate_new_candle(Simulation.iloc[[new_tick]])
             current_state = pd.concat([Simulation.iloc[[new_tick]], new_indicators_row], axis=1)
             # signal = signal_generator.check(current_state)
-            print(f"    {current_state.tail()}")
-            time.sleep(1)
-            index +=1
+            # print(f"    {current_state.tail()}")
+            # time.sleep(0.4)
 
 
     def add_strategy(self, name, signals_config, th_buy, th_sell):

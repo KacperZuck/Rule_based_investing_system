@@ -4,7 +4,7 @@ import pandas as pd
 
 #TODO PRZEKLEJONE Z CHATA __ TRZEBA POPRAWIC
 class Strategy:
-    def __init__(self, name, signal_configs, threshold_buy=1.0, threshold_sell=-1.0):
+    def __init__(self, name, signal_configs, threshold_buy=1.0, threshold_sell=1.0):
         """
         :param name: Nazwa strategii (np. "Scalper_M1")
         :param signal_configs: Lista definicji sygnałów:
@@ -30,14 +30,10 @@ class Strategy:
 
         buy_sum = (votes == 1).sum(axis=1)
         sell_sum = (votes == -1).sum(axis=1)
-
-        buy_ratio = buy_sum / signals_count
-        sell_ratio = sell_sum / signals_count
-
         results = pd.Series(0, index=manager_df.index)
 
-        results[(buy_ratio >= self.threshold_buy) & (buy_sum > 0)] = 1
-        results[(sell_ratio >= self.threshold_sell) & (sell_sum > 0)] = -1
+        results[((buy_sum/signals_count) >= self.threshold_buy) & (buy_sum > 0)] = 1
+        results[((sell_sum/signals_count) >= self.threshold_sell) & (sell_sum > 0)] = -1
 
         self.results = results
         return self.results
