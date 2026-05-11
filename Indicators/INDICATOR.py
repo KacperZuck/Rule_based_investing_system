@@ -10,7 +10,7 @@ class Indicator:
         self.params = params
         self.columns = columns
         self.results = pd.DataFrame() # do przechowywania dancyh
-        self.last_signal = 0
+        self.last_signal = NEUTRAL
 
     def count(self, df):
         raise NotImplementedError(f"Indicator {self.name} not implemented")
@@ -18,107 +18,106 @@ class Indicator:
     def update(self, new_data):
         raise NotImplementedError(f"Indicator {self.name}, lacking update function")
 
-    def add_signal(self, logic_type, logic_params, all_results=None):
-        """
-        logic_type: klucz z SIGNALS_MAP (np. "CROSSOVER")
-        logic_params: parametry (np. {"target": "SMA50"})
-        all_indicators_results: DataFrame ze wszystkimi wyliczonymi wskaźnikami
-        """
+    def add_signal(self, logic_type, logic_params, all_results):
         if logic_type not in SIGNALS_MAP:
             raise ValueError(f"Nieznany typ logiki: {logic_type}")
 
         logic_func = getattr(self, SIGNALS_MAP[logic_type])
         sig_col = f"{self.name}_signal"
 
-        raw = logic_func(logic_params, all_results)
+        # 1. Oblicz surową historię stanu (np. RSI ciągle < 30 -> -1)
+        # Przekazujemy all_results, gdzie Manager trzyma historię cen
+        raw_signals_state = logic_func(logic_params, all_results)
 
-        filtered = []
-        last_nonzero = 0
+        # 2. OSTATECZNY TOGGLE HISTORYCZNY (Usunięcie bloków)
+        # Tworzymy maskę zmian: sygnał jest inny niż poprzedni.
+        # fillna(True) na shift gwarantuje, że pierwszy wiersz zawsze zostanie.
+        mask = raw_signals_state != raw_signals_state.shift(1).fillna(NEUTRAL)
 
-        for val in raw:
-            if val == 0:
-                filtered.append(0)
+        # Gdzie zmiana, zostaw surowy. Gdzie brak zmiany, wstaw 0 (NEUTRAL).
+        # Używamy np.where, bo bywa szybsze niż .where() w Pandas przy dużych danych
+        clean_signals_array = np.where(mask, raw_signals_state, NEUTRAL)
 
-            elif val == last_nonzero:
-                filtered.append(0)
+        # Tworzymy czystą Series z poprawnym indeksem
+        final_history_signals = pd.Series(clean_signals_array, index=raw_signals_state.index, name=sig_col)
 
-            else:
-                filtered.append(val)
-                last_nonzero = val
+        # 3. Ustawienie stanu dla Live Trading
+        # Pobieramy ostatni NIEZEROWY sygnał z czystej historii
+        non_zero = final_history_signals[final_history_signals != NEUTRAL]
+        self.last_signal = non_zero.iloc[-1] if not non_zero.empty else NEUTRAL
 
-        final_history = pd.Series(filtered, index=raw.index, dtype=int)
+        # 4. Zapis wyników do wskaźnika
+        # Używamy nazwy wskaźnika (np. 'RSI') i nazwy sygnału (np. 'RSI_signal')
+        self.results = pd.DataFrame({
+            self.name: all_results[self.name],
+            sig_col: final_history_signals
+        }, index=all_results.index)
 
-        # 3. Ustawienie stanu dla przyszłej symulacji LIVE
-        # Szukamy ostatniego sygnału różnego od zera w całej historii
-        actual_signals = final_history[final_history != 0]
-        self.last_signal = actual_signals.iloc[-1] if not actual_signals.empty else 0
+        # Upewniamy się, że typy są poprawne (int dla sygnałów)
+        self.results[sig_col] = self.results[sig_col].astype(int)
 
-        # 4. Zapis wyników
-        self.results = pd.DataFrame(
-            {self.name: all_results[self.name],
-             sig_col: final_history},index=all_results.index)
         return self.results[[sig_col]]
 
     def update_signal(self, logic_type, logic_params, all_results):
-
         sig_col = f"{self.name}_signal"
-
         logic_func = getattr(self, SIGNALS_MAP[logic_type])
 
-        raw_val = logic_func(
-            logic_params,
-            all_results
-        ).iloc[-1]
+        # Pobierz surowy stan dla najnowszej świecy (iloc[-1])
+        raw_val = logic_func(logic_params, all_results).iloc[-1]
 
-        final_val = 0
+        # Toggle Live: emituj tylko jeśli stan surowy różni się od OSTATNIEGO WYSTAWIONEGO stanu
+        final_val = NEUTRAL
+        if raw_val != self.last_signal:
+            final_val = raw_val
+            # Aktualizujemy pamięć stanu live
+            self.last_signal = raw_val
 
-        if pd.isna(raw_val):
-            raw_val = 0
-            self.last_signal = final_val
-
+        # Zapisz do historii wewnętrznej (używając .loc)
         last_idx = all_results.index[-1]
 
-        new_row = pd.DataFrame(
-            {
-                self.name: [all_results[self.name].iloc[-1]],
-                sig_col: [final_val]
-            },
-            index=[last_idx]
-        )
-        self.results = pd.concat(
-            [self.results, new_row],
-            axis=0
-        )
+        # Inicjalizuj results, jeśli Manager tego nie zrobił w add_signal
+        if self.results is None or self.results.empty:
+            self.results = pd.DataFrame({self.name: [all_results[self.name].iloc[-1]], sig_col: [final_val]},
+                                        index=[last_idx])
+        else:
+            self.results.loc[last_idx, [self.name, sig_col]] = [all_results[self.name].iloc[-1], final_val]
 
-        return new_row[[sig_col]]
+        # Upewnij się, że kolumna sygnału to int
+        self.results[sig_col] = self.results[sig_col].astype(int)
 
-    # TODO __ PRYWATNE METODY
+        return self.results[[sig_col]].iloc[[-1]]
+
+    # --- PRYWATNE METODY LOGIKI ---
 
     def logic_threshold(self, p, all_results):
+        # Ta funkcja ZAWSZE zwraca STAN (czyli bloki 1 lub -1)
         s = all_results[self.name]
-        # Proste warunki: Kupuj gdy poniżej low, Sprzedaj gdy powyżej high
-        conds = [s < p.get('low', -np.inf), s > p.get('high', np.inf)]
-        return pd.Series(np.select(conds, [1, -1], 0), index=all_results.index)
+
+        # Proste warunki bez maskowania shift
+        cond_buy = s < p.get('low', -np.inf)
+        cond_sell = s > p.get('high', np.inf)
+
+        # numpy.select z default=0 generuje bloki danych (stan)
+        return pd.Series(np.select([cond_buy, cond_sell], [BUY, SELL], default=NEUTRAL), index=all_results.index)
 
     def logic_crossover(self, p, all_results):
-
+        # Crossover naturalnie generuje импульсы, bo porównuje z poprzednią świecą
         a = all_results[self.name]
         target = p.get('target')
-
         b = all_results[target] if target in all_results.columns else p.get('value', 0)
 
-        if len(a) < 2:
-            return pd.Series([0], index=all_results.index)
+        # Jeśli B to Series, synchronizujemy
+        if isinstance(b, pd.Series): b = b.reindex(a.index)
 
-        a_prev, a_now = a.iloc[-2], a.iloc[-1]
+        prev_a = a.shift(1)
+        prev_b = b.shift(1) if isinstance(b, pd.Series) else b
 
-        if isinstance(b, pd.Series):
-            b_prev, b_now = b.iloc[-2], b.iloc[-1]
-        else:
-            b_prev = b_now = b
+        buy = (a > b) & (prev_a <= prev_b)
+        sell = (a < b) & (prev_a >= prev_b)
 
-        buy = (a_now > b_now) and (a_prev <= b_prev)
-        sell = (a_now < b_now) and (a_prev >= b_prev)
+        # Upewniamy się, że nie ma sygnału, gdy dane są niepełne (np. pierwsza świeca)
+        non_na_mask = a.notna() & prev_a.notna()
+        if isinstance(b, pd.Series): non_na_mask &= b.notna() & prev_b.notna()
 
-        val = 1 if buy else -1 if sell else 0
-        return pd.Series([val])
+        return pd.Series(np.select([buy & non_na_mask, sell & non_na_mask], [BUY, SELL], default=NEUTRAL),
+                         index=all_results.index)
