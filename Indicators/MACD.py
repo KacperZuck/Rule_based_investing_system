@@ -14,7 +14,7 @@ class MACD(Indicator):
 
     def count(self, df):
 
-        close = df[self.columns[1]]
+        close = df[self.columns[0]]
         macd = SMA.calculate_sma(close, self.fast_ema) - SMA.calculate_sma(close, self.slow_ema)
         signal = SMA.calculate_sma(close, self.signal)
 
@@ -28,8 +28,8 @@ class MACD(Indicator):
 
     def update(self, new_data):
 
-        close = new_data[self.columns[1]]
-        self.buffer = pd.concat([self.buffer, close], axis=1)
+        close = new_data[self.columns[0]]
+        self.buffer = pd.concat([self.buffer, close], axis=0)
 
         macd = SMA.calculate_sma(self.buffer, self.fast_ema) - SMA.calculate_sma(self.buffer, self.slow_ema)
         signal = SMA.calculate_sma(self.buffer, self.signal)

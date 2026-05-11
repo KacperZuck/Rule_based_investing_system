@@ -12,7 +12,7 @@ SIGNALS_MAP = {
 CANDLESTICK ={
     "OPEN": "Otwarcie", "HIGH": "Najwyzszy",
     "LOW": "Najnizszy", "CLOSE": "Zamkniecie",
-    "Volume": "Wolumen",
+    "Volume": "Wolumen", "TIME": "Data"
 }
 def get_source_cols(source_type):
     mapping = {

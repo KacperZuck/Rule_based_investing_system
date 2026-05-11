@@ -17,7 +17,7 @@ INDICATOR_MAP = {
     "SMA": SMA,
     "EMA": EMA,
     "RSI": RSI,
-    # "MACD": MACD,
+    "MACD": MACD,
     "ADX": ADX,
     "STOCH": STOCH,
     "ATR": ATR,

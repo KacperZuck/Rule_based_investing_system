@@ -18,8 +18,7 @@ types_of_indicators:
   - {type: "TRIX", params:[18]}
   - {type: "BOP", params: [14], source: "OHLC"}
   - {type: "BB", params: [20,2]}
-##  - EKSPERYMENTALNIE
-##  - {type: "MACD", params:[12,26,9]} # DO ZROBIENIA
+  - {type: "MACD", params:[12,26,9]} # DO ZROBIENIA
 
 basic_trading_strategies:
   - name: "RSI"

@@ -1,11 +1,12 @@
 import os
 import yaml
+from IPython.display import display
+from Logic.Plots import StrategyPlot
 from Logic.strategy import Strategy
 from Logic.maps import get_source_cols
 from Logic.indicator_map import INDICATOR_MAP
 import pandas as pd
 import time
-import json
 
 class Manager():
     def __init__(self, path=None, config=None):
@@ -45,7 +46,7 @@ class Manager():
             print(f"{name}__:")
             data.append(i.count(df))
         self.df_data = pd.concat(data, axis=1)
-        return self.df_data
+        # return self.df_data
 
     def calculate_signals(self, price_df):
 
@@ -101,7 +102,7 @@ class Manager():
 
         self.df_strategy_results = final_signals
 
-        return self.df_strategy_results
+        # return self.df_strategy_results
 
     def calculate_new_candle(self, df):
         new_values = []
@@ -123,19 +124,17 @@ class Manager():
                 i_name = f"{config['type']}{config['params']}"
                 i = self.indicators[i_name]
 
-                print(f"    {i.name}__:")
                 signal_update = i.update_signal(
                     config['logic'],
                     config['logic_params'],
                     self.df_data
                 )
-
                 signal_name = f"{i_name}_signal"
                 new_signals.at[
                     df.index[0],
                     signal_name
                 ] = signal_update.iat[0, 0]
-
+                print(f"    {signal_name}__:")
         self.df_signals = pd.concat(
             [self.df_signals, new_signals],
             axis=0
@@ -152,19 +151,15 @@ class Manager():
 
         self.df_strategy_results = pd.concat(
             [self.df_strategy_results, new_vote],
-            axis=0
-        )
-
+            axis=0)
         return new_vote
 
-    def simulate_newdata_for_all(self, Simulation):
-        for new_tick in range(len(Simulation)):
-            print(f"Testing {new_tick} new candle__:")
-            new_indicators_row = self.calculate_new_candle(Simulation.iloc[[new_tick]])
-            current_state = pd.concat([Simulation.iloc[[new_tick]], new_indicators_row], axis=1)
-            # signal = signal_generator.check(current_state)
-            # print(f"    {current_state.tail()}")
-            # time.sleep(0.4)
+    # def simulate_live(self, Simulation):
+    #     for new_tick in range(len(Simulation)):
+    #         print(f"Testing {new_tick} new candle__:")
+    #         new_indicators_row = self.calculate_new_candle(Simulation.iloc[[new_tick]])
+    #         # print(f"    {current_state.tail()}")
+    #         time.sleep(0.5)
 
 
     def add_strategy(self, name, signals_config, th_buy, th_sell):
