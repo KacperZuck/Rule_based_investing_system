@@ -32,8 +32,7 @@ class RSI(Indicator):
         return self.results
 
     def update(self, df):
-        col_name = self.columns[0] if isinstance(self.columns, list) else self.columns
-        current_price = df[col_name].iloc[0]
+        current_price = df[self.columns[0]].iloc[0]
 
         if self.last_price is None:
             self.last_price = current_price

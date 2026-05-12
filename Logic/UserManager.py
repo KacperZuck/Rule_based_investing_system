@@ -1,35 +1,39 @@
+import os
+
 import pandas as pd
+import yaml
 
 from Logic.Manager import Manager
 
 
 class UserManager(Manager):
-    def __init__(self, config, user_strategies_config):
-        super().__init__(config)
-        self.user_strategies = []
-        self.user_indicators = {}
-        self.setup_strategies(user_strategies_config)
+    def __init__(self, config_path, asset_path):
+        super().__init__(config_path)
+        self.user_id = "admin"
+        self.asset = asset_path
+        #self.path_save = save_path
 
-    def setup_strategies(self, strategies_config):
-        "tworzy instancje strategii pobierajac z main"
-        for strategy in strategies_config:
-            for signal in strategy.get('signals', []):
-                name = f"{signal['type']}{signal['params']}"
-                if name not in self.indicators:
-                    new_indicator = self.add_indicator_from_config(signal)
-                    if new_indicator is not None:
-                        self.user_indicators[name] = new_indicator
+    def calculate_init(self,range):
 
-    def calculate(self, df):
-        # z menagera
-        base = super().calculate(df) #TODO __ NIE POTRZEBNIE OBLICZANE NA WSZYSTKICH WSKA
+        #TODO NARAZIE Z TAIL
+        df = pd.read_csv(self.asset).tail(range)
+        df.head(range-50)
+        self.calculate(df)
+        self.calculate_signals(df)
 
-        user_result = []
-        for name, i in self.user_indicators.items():
-            user_result.append(i.count(df))
+    #def load_user_data(self, path_save):
 
-        if user_result:
-            self.df_data = pd.concat([base] + user_result, axis=1)
-        else:
-            self.df_data = base
-        return self.df_data
+    def save_user_data(self, path_save):
+
+        config = self.get_strategies_config()
+        user_config = {
+            "user_id": getattr(self, "user_id", "Guest"),
+            "path_asset": self.asset,
+            "config": config
+        }
+
+        directory = os.path.dirname(path_save)
+        if directory and not os.path.exists(directory):
+            os.makedirs(directory)
+        with open(path_save, "w") as f:
+            yaml.dump(user_config, f)

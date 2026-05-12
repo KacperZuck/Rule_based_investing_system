@@ -18,7 +18,7 @@ types_of_indicators:
   - {type: "TRIX", params:[18]}
   - {type: "BOP", params: [14], source: "OHLC"}
   - {type: "BB", params: [20,2]}
-  - {type: "MACD", params:[12,26,9]} # DO ZROBIENIA
+  - {type: "MACD", params:[12,26,9]}
 
 basic_trading_strategies:
   - name: "RSI"
@@ -37,3 +37,24 @@ basic_trading_strategies:
         params: [9]
         logic: "CROSSOVER"
         logic_params: {target: "SMA[20]"}
+#  - name: "STOCH"
+#    threshold_buy: 0.8
+#    threshold_sell: 0.8
+#    signals:
+#      - type: "STOCH_K"
+#        params: [14,3,3]
+#        logic: "CROSSOVER"
+#        logic_params: {target: "STOCH_D"}
+#  - name: "ADX"
+#    threshold_buy: 0.8
+#    threshold_sell: 0.8
+#    signals:
+#      - type: ""
+#  - name: "MFI"
+#    threshold_buy: 0.8
+#    threshold_sell: 0.8
+#    signals:
+#      - type: "MFI"
+#        params: [14]
+#        logic: "THRESHOLD"
+#        logic_params: {low: 20, high: 80}

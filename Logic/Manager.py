@@ -1,12 +1,10 @@
 import os
 import yaml
-from IPython.display import display
-from Logic.Plots import StrategyPlot
 from Logic.strategy import Strategy
 from Logic.maps import get_source_cols
 from Logic.indicator_map import INDICATOR_MAP
 import pandas as pd
-import time
+
 
 class Manager():
     def __init__(self, path=None, config=None):
@@ -15,6 +13,7 @@ class Manager():
         self.df_data = pd.DataFrame()
         self.df_signals = pd.DataFrame()
         self.df_strategy_results = pd.DataFrame()
+        self.asset_path = path
 
         if path and os.path.exists(path):
             self.load_config(path)
@@ -105,10 +104,16 @@ class Manager():
         # return self.df_strategy_results
 
     def calculate_new_candle(self, df):
-        new_values = []
+        active_indicator_names = set()
+        for strategy in self.strategies.values():
+            for config in strategy.signal_configs:
+                i_name = f"{config['type']}{config['params']}"
+                active_indicator_names.add(i_name)
 
-        for name, i in self.indicators.items():
-            new_values.append(i.update(df))
+        new_values = []
+        for name in active_indicator_names:
+            if name in self.indicators:
+                new_values.append(self.indicators[name].update(df))
 
         new_candle = pd.concat([df] + new_values, axis=1)
 
@@ -135,6 +140,7 @@ class Manager():
                     signal_name
                 ] = signal_update.iat[0, 0]
                 print(f"    {signal_name}__:")
+
         self.df_signals = pd.concat(
             [self.df_signals, new_signals],
             axis=0
@@ -152,6 +158,9 @@ class Manager():
         self.df_strategy_results = pd.concat(
             [self.df_strategy_results, new_vote],
             axis=0)
+
+        print(f"        {self.df_signals}")
+        print(f"        {self.df_strategy_results}")
         return new_vote
 
     # def simulate_live(self, Simulation):
@@ -194,15 +203,17 @@ class Manager():
             )
 
     def save_config(self, path):
-        config = {
-            "strategies": [
-                {
-                    "name": strategy.name,
-                    "signals_config": strategy.signals_config,
-                    "threshold_buy": strategy.th_buy,
-                    "threshold_sell": strategy.th_sell
-                } for strategy in self.strategies.values()
-            ]
-        }
+        config = {"strategies": self.get_strategies_config()}
         with open(path, "w") as f:
-            yaml.dump(config, f)
+            yaml.dump(config, f, default_flow_style=False)
+
+    def get_strategies_config(self):
+        """Generuje słownik parametrów wszystkich strategii bez zapisywania do pliku."""
+        return [
+            {
+                "name": strategy.name,
+                "signals": strategy.signal_configs,  # Zawiera parametry wskaźników
+                "threshold_buy": strategy.threshold_buy,
+                "threshold_sell": strategy.threshold_sell
+            } for strategy in self.strategies.values()
+        ]
