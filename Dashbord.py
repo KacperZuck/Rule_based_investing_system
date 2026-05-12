@@ -3,23 +3,23 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import time
-from Logic.UserManager import UserManager
-from Logic.maps import CANDLESTICK, SIGNALS_MAP
-
+from Logic.Managers.UserManager import UserManager
+from Logic.maps import CANDLESTICK
+from Logic.SideBar import *
 
 Data_Range = 200
 Simulation_Range = 50
 
 st.set_page_config(page_title="RBIS", layout="wide")
-# --- INICJALIZACJA SESJI ---
+# TODO __ INICJALIZACJA SESJI
 if 'user_manager' not in st.session_state:
     default_config_path = "Logic/config.yaml"
     default_asset_path = "Data/ndaq_us.csv"
 
     try:
-        # Automatyczne wykrywanie separatora naprawia błąd "Expected 1 fields"
-        full_df = pd.read_csv(default_asset_path, sep=None, engine='python')
-        st.session_state.asset_data = full_df
+        #TODO __ DO PRZYSZLEJ POPRAWY __ NARAZIE ZMAPOWANE POD SIMULATION
+        full_df = pd.read_csv(default_asset_path, sep=None, engine='python').tail(Data_Range)
+        st.session_state.asset_data = full_df.head(Data_Range-Simulation_Range)
         st.session_state.simulation_step = 0
     except Exception as e:
         st.error(f"Błąd ładowania danych CSV: {e}")
@@ -34,39 +34,6 @@ if 'simulation_running' not in st.session_state:
     st.session_state.simulation_running = False
 
 
-# --- SIDEBAR (Zarządzanie) ---
-def render_sidebar():
-    st.sidebar.header("Zarządzanie sesją")
-    u_manager = st.session_state.user_manager
-
-    # TODO -- STWORZ WLASNA
-    # available_strats = list(u_manager.strategies.keys())
-    # selected = st.sidebar.selectbox("Stwórz własną strategie", available_strats)
-    #
-    # st.sidebar.divider()
-
-    available_strats = list(u_manager.strategies.keys())
-    if not available_strats:
-        st.sidebar.warning("Brak strategii")
-        st.stop()
-    selected = st.sidebar.selectbox("Wybierz dostepne strategie", available_strats)
-
-    st.sidebar.divider()
-
-    st.sidebar.subheader("Symulacja")
-    speed = st.sidebar.slider("Prędkość [s]", 0.0, 4.0, 1.0)
-    # st.sidebar.button("Uruchom symulacje")
-    st.sidebar.divider()
-
-    # Zapisywanie stanu
-    if st.sidebar.button("Zapisz stan sesji"):
-        save_file = f"Configs/config_{u_manager.user_id}.yaml"
-        u_manager.save_user_data(save_file)
-        st.sidebar.success(f"Sesja zapisana: {save_file}")
-
-    return selected, speed
-
-# --- LOGIKA RYSOWANIA ---
 class StrategyPlot:
     def __init__(self, strategy_name, manager):
         self.strategy_name = strategy_name
@@ -111,8 +78,9 @@ class StrategyPlot:
         self.container.plotly_chart(fig)
 
     def _render_signals(self, fig, df_data, df_res, y_axis_data=None):
-        buy = df_res[df_res[self.strategy_name] == 1]
-        sell = df_res[df_res[self.strategy_name] == -1]
+        current_res = df_res.loc[df_res.index.isin(df_data.index)]
+        buy = df_res[current_res[self.strategy_name] == 1]
+        sell = df_res[current_res[self.strategy_name] == -1]
 
         if y_axis_data is not None:
             y_buy = y_axis_data.loc[buy.index]
@@ -130,7 +98,7 @@ class StrategyPlot:
 
 
 # TODO __ PETLA
-selected_strat, time_speed = render_sidebar()
+selected_strat, time_speed = main_sidebar()
 
 if not st.session_state.simulation_running:
     if st.sidebar.button("Uruchom symualcje", key="btn_start"):
@@ -146,13 +114,16 @@ if selected_strat:
 
     if st.session_state.simulation_running:
         u_manager = st.session_state.user_manager
-        df = st.session_state.asset_data
+        df = pd.read_csv("Data/ndaq_us.csv").tail(Data_Range)
 
-        new_tick = Data_Range + st.session_state.simulation_step
-        for i in range(new_tick, len(df)):
+        new_tick = Data_Range + st.session_state.simulation_step - Simulation_Range
+        print(f"df len __ {len(df)}")
+        print(f"New tick __ {new_tick}")
+
+        for i in range(new_tick, Data_Range):
             if not st.session_state.simulation_running:
                 break;
-            new_candle = df.iloc[[new_tick]].copy()
+            new_candle = df.iloc[[i]]
             u_manager.calculate_new_candle(new_candle)
             st.session_state.simulation_step += 1
             # plotter = StrategyPlot(selected_strat, u_manager)
@@ -168,3 +139,26 @@ else:
 st.write("### Debug Info")
 st.write(f"Liczba wskaźników: {len(st.session_state.user_manager.indicators)}")
 st.write(f"Dostępne strategie: {list(st.session_state.user_manager.strategies.keys())}")
+
+# --- DEBUG SECTION ---
+# with st.expander("🔍 System Debugger - Stan wskaźników i strategii"):
+#     u_manager = st.session_state.user_manager
+#
+#     col1, col2 = st.columns(2)
+#     with col1:
+#         st.write("**Aktywne Wskaźniki:**")
+#         for name, ind_obj in u_manager.indicators.items():
+#             # Pokazuje nazwę i ostatnią obliczoną wartość
+#             last_val = ind_obj.results.iloc[-1].to_dict() if not ind_obj.results.empty else "Brak danych"
+#             st.text(f"• {name}: {last_val}")
+#
+#     with col2:
+#         st.write("**Aktywne Strategie:**")
+#         for name, strat_obj in u_manager.strategies.items():
+#             st.text(f"• {name} (Sygnały: {len(strat_obj.signal_configs)})")
+#
+#     st.write("**Ostatnie wyniki strategii (df_strategy_results):**")
+#     if not u_manager.df_strategy_results.empty:
+#         st.dataframe(u_manager.df_strategy_results.tail(5))
+#     else:
+#         st.warning("Brak wygenerowanych sygnałów w df_strategy_results")

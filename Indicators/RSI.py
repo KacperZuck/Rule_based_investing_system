@@ -48,7 +48,7 @@ class RSI(Indicator):
             avg_gain = self.gain_buffer.mean()
             avg_loss = self.loss_buffer.mean()
 
-            if avg_loss is not None == 0:
+            if avg_loss == 0:
                 new_rsi = 100 if avg_gain > 0 else 50
             else:
                 rs = avg_gain / avg_loss

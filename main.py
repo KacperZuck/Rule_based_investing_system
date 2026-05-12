@@ -1,16 +1,6 @@
-import os
-from turtle import st
-
-import pandas as pd
 from jedi.inference.compiled import subprocess
 
-from Logic.Manager import Manager
 # import yfinance as yf # DANE DO POBRANIA
-from Dashbord import StrategyPlot
-import time
-import sys
-import os
-from streamlit.web import cli as stcli
 
 Data_Range = 200
 Simulation_Range = 50

@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import yaml
 
-from Logic.Manager import Manager
+from Logic.Managers.Manager import Manager
 
 
 class UserManager(Manager):
@@ -17,7 +17,8 @@ class UserManager(Manager):
 
         #TODO NARAZIE Z TAIL
         df = pd.read_csv(self.asset).tail(range)
-        df.head(range-50)
+        df = df.head(range-50)
+        print(f"Wielkosc danych przed calc {len(df)}")
         self.calculate(df)
         self.calculate_signals(df)
 

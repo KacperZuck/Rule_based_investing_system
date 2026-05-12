@@ -1,8 +1,5 @@
 import pandas as pd
 
-
-
-#TODO PRZEKLEJONE Z CHATA __ TRZEBA POPRAWIC
 class Strategy:
     def __init__(self, name, signal_configs, threshold_buy=1.0, threshold_sell=1.0):
         """
@@ -16,6 +13,7 @@ class Strategy:
         self.threshold_sell = threshold_sell
         self.threshold_buy = threshold_buy
         self.results = pd.Series()
+        self.owned_assets = 0
 
     def run_voting(self, manager_df):
         """Zbiera kolumny sygnałowe wygenerowane przez managera i wylicza wynik końcowy."""
@@ -30,10 +28,20 @@ class Strategy:
 
         buy_sum = (votes == 1).sum(axis=1)
         sell_sum = (votes == -1).sum(axis=1)
-        results = pd.Series(0, index=manager_df.index)
+        result = pd.Series(0, index=manager_df.index)
 
-        results[((buy_sum/signals_count) >= self.threshold_buy) & (buy_sum > 0)] = 1
-        results[((sell_sum/signals_count) >= self.threshold_sell) & (sell_sum > 0)] = -1
+        result[((buy_sum/signals_count) >= self.threshold_buy) & (buy_sum > 0)] = 1
+        result[((sell_sum/signals_count) >= self.threshold_sell) & (sell_sum > 0)] = -1
 
-        self.results = results
+        self.results = result
+        if result is not None:
+            if result.iloc[-1] == 1:
+                self.buy_assets()
+            elif result.iloc[-1] == -1:
+                self.sell_assets()
         return self.results
+
+    def sell_assets(self):
+        return
+    def buy_assets(self):
+        return
