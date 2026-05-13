@@ -4,7 +4,7 @@ from jedi.inference.compiled import subprocess
 
 Data_Range = 200
 Simulation_Range = 50
-Config_path = "Logic/config.yaml"
+Config_path = "Logic/Static/config.yaml"
 manager = None
 
 

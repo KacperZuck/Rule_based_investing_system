@@ -2,12 +2,7 @@ import pandas as pd
 
 class Strategy:
     def __init__(self, name, signal_configs, threshold_buy=1.0, threshold_sell=1.0):
-        """
-        :param name: Nazwa strategii (np. "Scalper_M1")
-        :param signal_configs: Lista definicji sygnałów:
-               [{"ind_type": "RSI", "ind_params": [14], "logic": "THRESHOLD", "logic_params": {...}}, ...]
-        :param threshold: Próg głosowania (np. 0.7 dla 70%)
-        """
+
         self.name = name
         self.signal_configs = signal_configs
         self.threshold_sell = threshold_sell

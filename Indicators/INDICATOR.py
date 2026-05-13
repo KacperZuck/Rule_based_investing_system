@@ -1,8 +1,6 @@
-from logging import lastResort
-
 import numpy as np
 import pandas as pd
-from Logic.maps import SIGNALS_MAP, BUY, SELL, NEUTRAL
+from Logic.Static.maps import SIGNALS_MAP, BUY, SELL, NEUTRAL
 
 class Indicator:
     def __init__(self,name,params,columns):

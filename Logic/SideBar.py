@@ -1,7 +1,7 @@
 import ast
 
 import streamlit as st
-from Logic.indicator_map import INDICATOR_MAP
+from Logic.Static.indicator_map import INDICATOR_MAP
 
 def render_sidebar():
     st.sidebar.header("Zarządzanie sesją")

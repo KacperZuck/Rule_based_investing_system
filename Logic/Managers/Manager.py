@@ -1,7 +1,7 @@
 import os
 import yaml
-from Logic.maps import get_source_cols
-from Logic.indicator_map import INDICATOR_MAP
+from Logic.Static.maps import get_source_cols
+from Logic.Static.indicator_map import INDICATOR_MAP
 from Logic.Managers.Strategy import Strategy
 import pandas as pd
 
@@ -37,21 +37,17 @@ class Manager():
         unique_name = f"{type}{params}"
 
         if unique_name not in self.indicators:
-            # 1. Pobieramy metadane z mapy
             indicator_meta = INDICATOR_MAP.get(type)
 
-            # 2. To tutaj rzucało Twój błąd - upewnij się, że klucz istnieje
             if not indicator_meta:
                 raise ValueError(f"Wskaznik {type} nie istnieje w INDICATOR_MAP. "
                                  f"Dostępne klucze: {list(INDICATOR_MAP.keys())}")
 
-            # 3. Pobieramy KLASĘ z metadanych
             i_class = indicator_meta.get('class')
 
             if not i_class:
                 raise TypeError(f"Błąd konfiguracji: {type} nie ma przypisanej klasy w mapie.")
 
-            # 4. Przygotowanie źródła i inicjalizacja
             source_cols = get_source_cols(columns)
             self.indicators[unique_name] = i_class(unique_name, params, source_cols)
 
@@ -61,14 +57,11 @@ class Manager():
         """
         Tworzy strategię na podstawie listy konfiguracji sygnałów z GUI.
         signal_configs to lista słowników: {"type", "params", "logic", "logic_params"}
-        """  # Import lokalny by uniknąć circular import
+        """
 
-        # 1. Najpierw upewnij się, że wszystkie potrzebne wskaźniki istnieją
         for cfg in signal_configs:
-            # Główny wskaźnik
             self.get_or_create_indicator(cfg['type'], cfg['params'])
 
-            # Jeśli to CROSSOVER, musimy stworzyć też wskaźnik docelowy (target)
             if cfg['logic'] == "CROSSOVER":
                 target = cfg['logic_params'].get('target')
                 # Sprawdzamy czy target to wskaźnik (np. "SMA"), a nie "CLOSE"
@@ -76,11 +69,9 @@ class Manager():
                     t_params = cfg['logic_params'].get('target_params', [])
                     self.get_or_create_indicator(target, t_params)
 
-        # 2. Tworzymy obiekt strategii (przekazujemy nazwę i konfigurację sygnałów)
         new_strategy = Strategy(name, signal_configs)
         self.strategies[name] = new_strategy
 
-        # 3. Inicjalizujemy wyniki dla nowej strategii w DataFrame
         self.df_strategy_results[name] = 0
         return True
 
