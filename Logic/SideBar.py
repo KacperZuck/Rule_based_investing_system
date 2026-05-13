@@ -14,7 +14,10 @@ def render_sidebar():
     selected = st.sidebar.selectbox("Wybierz dostepne strategie", available_strats)
     st.sidebar.divider()
 
-    investing_money = st.sidebar.text_input("Zadeklaruj inwestowaną kwotę", placeholder="wpisz kwote...")
+    #TODO __ DOCELOWO ZAPISUJE W INDYWIDUALNEJ STRATEGII
+    # selected.invest_money()
+    investing_money = st.sidebar.number_input("Zadeklaruj inwestowaną kwotę",
+        value=1000)
     st.sidebar.divider()
 
     st.sidebar.subheader("Symulacja")

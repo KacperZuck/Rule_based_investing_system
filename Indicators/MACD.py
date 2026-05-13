@@ -28,7 +28,7 @@ class MACD(Indicator):
 
     def update(self, new_data):
 
-        close = new_data[self.columns[0]].iloc[0]
+        close = new_data[self.columns[0]]
         self.buffer = pd.concat([self.buffer, close], axis=0)
 
         macd = SMA.calculate_sma(self.buffer, self.fast_ema) - SMA.calculate_sma(self.buffer, self.slow_ema)

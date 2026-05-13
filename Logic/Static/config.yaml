@@ -50,11 +50,19 @@ basic_trading_strategies:
 #    threshold_sell: 0.8
 #    signals:
 #      - type: ""
-#  - name: "MFI"
-#    threshold_buy: 0.8
-#    threshold_sell: 0.8
-#    signals:
-#      - type: "MFI"
-#        params: [14]
-#        logic: "THRESHOLD"
-#        logic_params: {low: 20, high: 80}
+  - name: "MFI"
+    threshold_buy: 0.8
+    threshold_sell: 0.8
+    signals:
+      - type: "MFI"
+        params: [14]
+        logic: "THRESHOLD"
+        logic_params: {low: 20, high: 80}
+  - name: "MACD"
+    threshold_buy: 0.8
+    threshold_sell: 0.8
+    signals:
+      - type: "MACD"
+        params: [12,26,9]
+        logic: "CROSSOVER"
+        logic_params: { target: "EMA[9]" }
