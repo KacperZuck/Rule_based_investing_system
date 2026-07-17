@@ -12,7 +12,7 @@ st.set_page_config(page_title="RBIS", layout="wide")
 # TODO __ INICJALIZACJA SESJI
 if 'user_manager' not in st.session_state:
     default_config_path = "Logic/Static/config.yaml"
-    default_asset_path = "Data/ndaq_us.csv"
+    default_asset_path = "Data/HistoricValues/ndaq_us.csv"
 
     try:
         #TODO __ DO PRZYSZLEJ POPRAWY __ NARAZIE ZMAPOWANE POD SIMULATION
@@ -48,7 +48,7 @@ if selected_strat:
 
     if st.session_state.simulation_running:
         u_manager = st.session_state.user_manager
-        df = pd.read_csv("Data/ndaq_us.csv").tail(Data_Range)
+        df = pd.read_csv("Data/HistoricValues/ndaq_us.csv").tail(Data_Range)
 
         new_tick = Data_Range + st.session_state.simulation_step - Simulation_Range
         print(f"df len __ {len(df)}")
