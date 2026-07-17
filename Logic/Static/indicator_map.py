@@ -70,16 +70,34 @@ INDICATOR_MAP = {
         "logic": ["THRESHOLD", "CROSSOVER"]
     },
     "ATR": {
-        "class": ATR
+        "class": ATR,
+        "display_name": "ATR",
+        "params": {
+            "N": {"type": "int", "min": 2, "max": 100, "default": 14},
+        }
     },
     "ROC": {
-        "class": ROC
+        "class": ROC,
+        "display_name": "ATR",
+        "params": {
+            "N": {"type": "int", "min": 2, "max": 100, "default": 10},
+        }
     },
     "William_pR": {
-        "class": William_pR
+        "class": William_pR,
+        "display_name": "ATR",
+        "params": {
+            "N": {"type": "int", "min": 2, "max": 100, "default": 14},
+        }
     },
     "ULT": {
-        "class": ULT
+        "class": ULT,
+        "display_name": "ATR",
+        "params": {
+            "p1": {"type": "int", "min": 1, "max": 50, "default": 7},
+            "p2": {"type": "int", "min": 5, "max": 100, "default": 14},
+            "p3": {"type": "int", "min": 10, "max": 300, "default": 28},
+        }
     },
     "MFI": {
         "class": MFI,
@@ -90,10 +108,18 @@ INDICATOR_MAP = {
         "source": "ALL" # Wymaga OHLCV
     },
     "TRIX": {
-        "class": TRIX
+        "class": TRIX,
+        "display_name": "ATR",
+        "params": {
+            "N": {"type": "int", "min": 2, "max": 100, "default": 18},
+        }
     },
     "BOP": {
-        "class": BOP
+        "class": BOP,
+        "display_name": "ATR",
+        "params": {
+            "N": {"type": "int", "min": 2, "max": 100, "default": 14},
+        }
     },
     "BB": {
         "class": BB,
