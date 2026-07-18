@@ -5,6 +5,13 @@ import pandas as pd
 from datetime import datetime
 
 
+# KOLORY dla info
+GREEN = '\033[92m'
+RED = '\033[91m'
+YELLOW = '\033[93m'
+RESET = '\033[0m'
+
+
 class Database:
     def __init__(self):
         # Parametry połączenia - dostosuj do swojego serwera
@@ -26,7 +33,7 @@ class Database:
             try:
                 self.conection = pyodbc.connect(self.conection_str)
             except Exception as e:
-                print(f"Błąd podczas łączenia z bazą SQL: {e}")
+                print(f"{RED}[ERROR]{RESET} podczas łączenia z bazą SQL: {e}")
                 raise e
         return self.conection
 

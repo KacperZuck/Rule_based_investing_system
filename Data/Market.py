@@ -1,6 +1,10 @@
+import warnings
 
 import pandas as pd
-from Database import Database
+from streamlit import cursor
+import warnings
+
+from Database import *
 
 class MarketRepository():
     def __init__(self, db : Database):
@@ -8,33 +12,47 @@ class MarketRepository():
 
 
     def get_candles(self, ticker: str) -> pd.DataFrame:
-        """
-        Pobiera świece dla danego instrumentu i interwału bezpośrednio do Pandas DataFrame.
-        Idealne do analizy technicznej i rysowania wykresów.
-        """
+
         cont = self.db.connect()
+
         query = """
-                SELECT c.time_stamp, c.[open], c.[high], c.[low], c.[close], c.volume
-                FROM Candle c
-                    JOIN Instrument i \
-                ON c.id_instrument = i.id_instrument
-                    JOIN TimeFrame t ON c.id_timeframe = t.id_timeframe
-                WHERE i.ticker = ? AND t.code = ?
-                ORDER BY c.time_stamp ASC \
-                """
+                SELECT CAST(c.time_stamp AS VARCHAR(50)) AS time_stamp, c.[open], c.[high], c.[low], c.[close], c.volume
+                FROM Candle c JOIN Instrument i ON c.id_instrument = i.id_instrument
+                WHERE i.ticker = ? ORDER BY c.time_stamp ASC """
 
         try:
-            # Pandas pozwala na bezpośrednie czytanie z zapytania SQL
-            df = pd.read_sql(query, cont, params=[ticker])
-            # Konwertujemy timestamp na index dla łatwiejszego liczenia wskaźników
-            df['time_stamp'] = pd.to_datetime(df['time_stamp'])
-            df.set_index('time_stamp', inplace=True)
+            # Blokujemy ostrzeżenie Pandas dotyczące braku silnika SQLAlchemy
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                # Przekazujemy wyciągnięte wcześniej id_instrument oraz timeframe_code
+                df = pd.read_sql(query, cont, params=[ticker])
+
+            if not df.empty:
+                df['time_stamp'] = pd.to_datetime(df['time_stamp'])
+                df.set_index('time_stamp', inplace=True)
+            else:
+                print(f"{YELLOW}[INFO]{RESET} brak tickera {ticker} w bazie")
             return df
         except Exception as e:
-            print(f"Błąd pobierania danych: {e}")
+            print(f"{RED}[ERROR]{RESET} pobierania świec z bazy: {e}")
             return pd.DataFrame()
 
 
-# db = Database()
-# market_repo = MarketRepository(db)
-# df = market_repo.get_candles('NDAQ', '1d')
+    def get_instrument(self, ticker: str) -> pd.DataFrame:
+
+        cont = self.db.connect()
+        cursor = cont.cursor()
+
+        try:
+            cursor.execute("SELECT id_instrument, ticker, name FROM Instrument WHERE ticker = ?", (ticker,))
+            data = cursor.fetchone()
+
+            if not data:
+                print(f"{RED}[ERROR]{RESET}: Nie znaleziono instrumentu o tickerze '{ticker}' w słowniku Instrument.")
+                return pd.DataFrame()
+
+            return {"id_instrument": data[0], "ticker": data[1], "name": data[2]}
+        except Exception as e:
+            print(f"{RED}[ERROR]{RESET} podczas sprawdzania ID instrumentu: {e}")
+            return pd.DataFrame()
+

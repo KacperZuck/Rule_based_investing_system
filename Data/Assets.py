@@ -3,10 +3,10 @@ from idlelib import query
 import pandas as pd
 from uvicorn.main import print_version
 
-from Database import Database
+from Database import *
 from datetime import datetime
 
-class Assets():
+class AssetsRepository():
     def __init__(self, db: Database):
         self.db = db
 
@@ -25,31 +25,31 @@ class Assets():
                 return
                 # return {"id_asset": data[0], "": data[1], data[2]: data[3]}
         except Exception as e:
-            print(f"Błąd podczas pobierania pozycji: {e}")
+            print(f"{RED}[ERROR]{RESET} podczas pobierania pozycji: {e}")
         return False
 
     def get_user_position(self, id_user: int, id_instrument: int, id_strategy: int) -> dict or None:
         """Sprawdza, czy użytkownik ma otwartą pozycję dla danego waloru i strategii."""
-        conn = self.db.get_connection()
+        conn = self.db.connect()
         query = """
-                SELECT id_assets, quantity, average_buy_price, active
+                SELECT id_assets, quantity, averagePrice, active, allocatedBalance
                 FROM Assets
                 WHERE id_user = ? AND id_instrument = ? AND id_strategy = ?\
                 """
         try:
             cursor = conn.cursor()
-            cursor.execute(query, (id_user, id_instrument, id_strategy, id_strategy))
-            row = cursor.fetchone()
-            if row:
-                return {"id_assets": row[0], "quantity": float(row[1]), "averagePrice": float(row[2]),
-                        "active": bool(row[3])}
+            cursor.execute(query, (id_user, id_instrument, id_strategy))
+            data = cursor.fetchone()
+            if data:
+                return {"id_assets": data[0], "quantity": float(data[1]), "averagePrice": float(data[2]),
+                        "active": bool(data[3]), "allocatedBalance": float(data[4])}
         except Exception as e:
-            print(f"Błąd pobierania pozycji: {e}")
+            print(f"{RED}[ERROR]{RESET} pobierania pozycji: {e}")
         return None
 
     def get_portfolio_dashboard(self, id_user: int) -> pd.DataFrame:
         """Pobiera aktualny stan konta i akcji do wyświetlenia w tabeli Streamlit."""
-        cont = self.db.get_connection()
+        cont = self.db.connect()
         query = """
                 SELECT i.ticker, i.[name], a.quantity, a.averagePrice, s.[name] AS managed_by
                 FROM Assets a
@@ -65,7 +65,7 @@ class Assets():
         Przenosi środki z głównego portfela (Wallet) do budżetu konkretnej strategii (Assets).
         Uruchamiane, gdy użytkownik w Streamlit przypisuje budżet do bota.
         """
-        cont = self.db.get_connection()
+        cont = self.db.connect()
         cursor = cont.cursor()
         query = """SELECT balance FROM Wallet WHERE id_user = ?"""
         try:
@@ -76,12 +76,11 @@ class Assets():
                 print("Niewystarczające środki w głównym portfelu")
                 return False
 
-            # 2. Pobierz lub stwórz rekord w Assets dla tej strategii
             position = self.get_user_position(id_user, id_instrument, id_strategy)
             if not position:
                 ins_query = """
                             INSERT INTO Assets (id_user, id_instrument, id_strategy, allocatedBalance)
-                            VALUES (?, ?, ?, amount) \
+                            VALUES (?, ?, ?, ?) \
                             """
                 cursor.execute(ins_query, (id_user, id_instrument, id_strategy, amount))
             else:
@@ -89,12 +88,12 @@ class Assets():
                                (amount, position["id_assets"]))
 
             # 3. Odejmij środki z głównego portfela
-            cursor.execute("UPDATE Wallet SET balance = balance - ? WHERE id_user = ?", (amount, id_user))
+            cursor.execute("UPDATE [Wallet] SET balance = balance - ? WHERE id_user = ?", (amount, id_user))
 
             cont.commit()
             return True
         except Exception as e:
-            print(f"Błąd podczas przenoszenai środkow: {e}")
+            print(f"{RED}[ERROR]{RESET} podczas przenoszenai środkow: {e}")
             cont.rollback()
         return False
 
@@ -109,9 +108,9 @@ class Assets():
         try:
             position = self.get_user_position(id_user, id_instrument, id_strategy)
             if not position:
-                raise ValueError("Brak posiadanego aktywa")
+                raise ValueError(f"{RED}[ERROR]{RESET} posiadanego aktywa")
             if not position["allocatedBalance"]:
-                raise ValueError("Błąd środków w akrywie")
+                raise ValueError(f"{RED}[ERROR]{RESET} środków w akrywie")
 
             id_assets = position["id_assets"]
             total_value = quantity * price
@@ -121,34 +120,21 @@ class Assets():
             avaibleBalance = float(cursor.fetchone()[0])
 
             if trade_type == 'BUY':  ### TODO __ DO PRZEMYSLENIA
-                if avaibleBalance == 0.0:
-                    print(f"Transakcja zablokowana: Pozycja nie posiada środków wyczerpała swój budżet, dostępne {avaibleBalance}, PRAWDOPODOBNIE BLAD SYSTEMU!!!")
+                if avaibleBalance <= 0.0:
+                    print(f"{RED}[ERROR]{RESET} Transakcja zablokowana: Pozycja nie posiada środków wyczerpała swój budżet, dostępne {avaibleBalance}, PRAWDOPODOBNIE BLAD SYSTEMU!!!")
                     return False
                 if avaibleBalance < total_value:
-                    quantity = price * avaibleBalance
+                    quantity = avaibleBalance / price
 
-                # new_qty = position["quantity"] + quantity
-                # new_avg_price = ((position["quantity"] * position["average_buy_price"]) + (quantity * price)) / new_qty
-
-                # Aktualizujemy ilość, cenę oraz ODEJMUJEMY gotówkę ze skrytki tej strategii
-                cursor.execute("""
-                               UPDATE Assets
-                               SET quantity = ?, averagePrice = ?, allocatedBalance = 0.0, active = 1 WHERE id_assets = ?
-                               """, (quantity, price, id_assets))
+                cursor.execute("""UPDATE Assets
+                    SET quantity = ?, averagePrice = ?, allocatedBalance = 0.0000, active = 1 WHERE id_assets = ?
+                    """, (quantity, price, id_assets))
                 PNL = None
-            else:  # SELL
-                # if position["quantity"] < quantity:
-                #     raise ValueError("Bot próbuje sprzedać więcej akcji niż strategia aktualnie posiada.")
-
-                # new_qty = position["quantity"] - quantity
-                #quantity = avaibleBalance / price
+            else:  #TODO __SELL
                 PNL = (price - position["averagePrice"]) * quantity
-                # active_status = 1 if quantity > 0 else 0
-
-                # Aktualizujemy ilość oraz ZWRACAMY gotówkę (wraz z zyskiem) do skrytki tej strategii
                 cursor.execute("""
-                               UPDATE Assets SET quantity = ?, allocatedBalance = ?, active = ? WHERE id_assets = ?
-                               """, (0.0, total_value, 1, id_assets))
+                   UPDATE Assets SET quantity = ?, allocatedBalance = ?, active = ? WHERE id_assets = ?
+                   """, (0.0, total_value, 1, id_assets))
 
             # Rejestracja wpisu w historii transakcji
             new_transaction = """
@@ -160,6 +146,6 @@ class Assets():
             conn.commit()
             return True
         except Exception as e:
-            print(f"Błąd podczas transakcji po sygnale {trade_type} dla strategii (id: {id_strategy}: {e}")
+            print(f"{RED}[ERROR]{RESET} podczas transakcji po sygnale {trade_type} dla strategii (id: {id_strategy}): {e}")
             conn.rollback()
             return False
