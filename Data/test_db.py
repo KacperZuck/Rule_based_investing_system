@@ -1,25 +1,33 @@
+import os
 import sys
-from Database import *
-from Market import MarketRepository
-from User import UserRepository
-from Strategies import StrategiesRepository
-from Assets import AssetsRepository
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
 
+from Data.Database import Database
+from Data.Market import MarketRepository
+from Data.User import UserRepository
+from Data.Strategies import StrategiesRepository
+from Data.Assets import AssetsRepository
+
+GREEN = '\033[92m'
+RED = '\033[91m'
+YELLOW = '\033[93m'
+RESET = '\033[0m'
 
 def cleanup_test_data(db: Database, email: str, strategy_name: str):
     """Usuwa wszystkie dane testowe wygenerowane podczas działania skryptu."""
     print(f"\n{YELLOW}--- CZYSZCZENIE DANYCH TESTOWYCH ---{RESET}")
     cont = db.connect()
     cursor = cont.cursor()
+
     try:
-        # Usuwanie powiązanych z użytkownikiem transakcji, aktywów, portfela i konta
         cursor.execute("DELETE FROM [Transaction] WHERE id_assets IN (SELECT id_assets FROM Assets WHERE id_user IN (SELECT id_user FROM [User] WHERE email = ?))", (email,))
         cursor.execute("DELETE FROM Assets WHERE id_user IN (SELECT id_user FROM [User] WHERE email = ?)", (email,))
         cursor.execute("DELETE FROM Wallet WHERE id_user IN (SELECT id_user FROM [User] WHERE email = ?)", (email,))
         cursor.execute("DELETE FROM [User] WHERE email = ?", (email,))
         print(f"{GREEN}[OK]{RESET} Usunięto użytkownika testowego i jego portfel.")
 
-        # Usuwanie powiązanych ze strategią sygnałów, konfiguracji i samej strategii
         cursor.execute("DELETE FROM SignalConfig WHERE id_strategy IN (SELECT id_strategy FROM Strategy WHERE name = ?)", (strategy_name,))
         cursor.execute("DELETE FROM StrategySignal WHERE id_strategy IN (SELECT id_strategy FROM Strategy WHERE name = ?)", (strategy_name,))
         cursor.execute("DELETE FROM Strategy WHERE name = ?", (strategy_name,))
@@ -34,7 +42,6 @@ def cleanup_test_data(db: Database, email: str, strategy_name: str):
 def run_integration_tests():
     print(f"{YELLOW}TESTY INTEGRACYJNE Z BAZA DANYCH{RESET}")
 
-    # 1. Inicjalizacja bazy
     db = Database()
     try:
         conn = db.connect()
@@ -43,7 +50,6 @@ def run_integration_tests():
         print(f"{RED}[FAIL]{RESET} Nie udało się połączyć z bazą: {e}")
         sys.exit(1)
 
-    # Inicjalizacja wszystkich repozytoriów
     market_repo = MarketRepository(db)
     user_repo = UserRepository(db)
     strat_repo = StrategiesRepository(db)
@@ -58,6 +64,7 @@ def run_integration_tests():
     # -------------------------------------------------------------------------
     # TEST 1: Pobieranie świeczek (MarketRepository)
     # -------------------------------------------------------------------------
+
     print("\n--- TEST MARKET ---")
     df = market_repo.get_candles(ticker="NDAQ")
     if not df.empty:
@@ -170,6 +177,21 @@ def run_integration_tests():
     else:
         print(f"{RED}[FAIL]{RESET} blad w dodawaniu strategi")
 
+    df_strategies = strat_repo.get_strategies_main_page()
+    if not df_strategies.empty:
+        print(f"{GREEN}[OK]{RESET} Pobrano Strategie na stronę główną (Widoczne: {len(df_strategies)}).")
+        print(df_strategies.head(2))
+    else:
+        # Pamiętaj, że test może rzucić INFO, jeśli nie ma żadnej strategii z flagą public = 1
+        print(f"{YELLOW}[INFO]{RESET} Zwrócono pusty wynik dla get_strategies_main_page (może brak publicznych strategii?).")
+
+    # 3. Test pobierania szczegółów wskaźników
+    df_indicators = strat_repo.get_indicators_main_page()
+    if not df_indicators.empty:
+        print(f"{GREEN}[OK]{RESET} Pobrano Wskaźniki na stronę główną (Widoczne: {len(df_indicators)}).")
+        print(df_indicators.head(2))
+    else:
+        print(f"{RED}[FAIL]{RESET}Brak danych dla get_indicators_main_page")
 
     # -------------------------------------------------------------------------
     # TEST 4: Alokacja budżetu i handel wewnątrz-budżetowy (AssetRepository)
@@ -202,7 +224,13 @@ def run_integration_tests():
     else:
         print(f"{RED}[FAIL]{RESET} dashboard")
 
-    # Sprzątanie połączenia
+    df_instruments = market_repo.get_instruments_main_page()
+    if not df_instruments.empty:
+        print(f"{GREEN}[OK]{RESET} Pobrano Instrumenty na stronę główną (Widoczne: {len(df_instruments)}).")
+        print(df_instruments.head(2))
+    else:
+        print(f"{RED}[FAIL]{RESET} Brak danych dla get_instruments_main_page")
+
     cleanup_test_data(db, TEST_EMAIL, TEST_STRATEGY)
     print("\n=== TESTY ZAKOŃCZONE ===")
 

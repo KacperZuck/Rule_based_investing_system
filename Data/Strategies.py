@@ -139,45 +139,47 @@ class StrategiesRepository():
 
     def get_indicators_main_page(self) -> pd.DataFrame:
         cont = self.db.connect()
-        cursor = cont.cursor()
-        query = """SELECT c.[code], c.[name], s.[type]
-                   FROM Indicator i AND [Source] s WHERE i.id_source = s.id_source 
-                   AND [Code] c WHERE i.id_code = c.id_code
-                   ORDER BY id_indicator ASC """
-
+        # Używamy INNER JOIN zamiast AND w klauzuli FROM
+        query = """
+                SELECT c.[code], c.[name], s.[type]
+                FROM Indicator i
+                         JOIN [Source] s \
+                ON i.id_source = s.id_source
+                    JOIN [Code] c ON i.id_code = c.id_code
+                ORDER BY i.id_indicator ASC \
+                """
         try:
-            cursor.execute(query)
-            data = cursor.fetchone()
-
-            if not data:
-                print(f"{RED}[ERROR]{RESET}: Nie znaleziono danych")
-                return pd.DataFrame()
-            return {"code": data[0], "name": data[1], "type": data[2]}
-
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                df = pd.read_sql(query, cont)
+            return df
         except Exception as e:
-            print(f"{RED}[ERROR]{RESET} przy odczytywaniu wszystkich indykatorow")
-        return pd.DataFrame()
+            print(f"[ERROR] przy odczytywaniu wskaźników dla main page: {e}")
+            return pd.DataFrame()
 
     def get_strategies_main_page(self) -> pd.DataFrame:
         cont = self.db.connect()
-        cursor = cont.cursor()
-
-        query = """ SELECT s.id_strategy, s.id_indicator,s.[name] s.threshold_low, s.threshold_high, COUNT(sig.id_strategy) AS signals
-            FROM Strategy s AND SignalConfig sig WHERE s.id_source = sig.id_source AND s.public = 1
-            ORDER BY s.id_strategy ASC
-        """
+        # Używamy LEFT JOIN oraz GROUP BY, ponieważ używamy agregacji COUNT()
+        query = """
+                SELECT s.id_strategy, \
+                       s.[name], \
+                       s.thresholdBuy, \
+                       s.thresholdSell, \
+                       COUNT(sig.id_signalconfig) AS signals
+                FROM Strategy s
+                         LEFT JOIN SignalConfig sig ON s.id_strategy = sig.id_strategy
+                WHERE s.[public] = 1
+                GROUP BY s.id_strategy, s.[name], s.thresholdBuy, s.thresholdSell
+                ORDER BY s.id_strategy ASC \
+                """
         try:
-            cursor.execute(query)
-            data = cursor.fetchall()
-            if not data:
-                print(f"{RED}[ERROR]{RESET}: Nie znaleziono danych dla strategi")
-                return pd.DataFrame()
-            return {"id_strategy": data[0], "id_indicator": data[1], "name": data[2],
-                    "threshold_low": data[3], "threshold_high": data[4], "signals": data[5]}
-
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                df = pd.read_sql(query, cont)
+            return df
         except Exception as e:
-            print(f"{RED}[ERROR]{RESET} przy odczytywaniu wszystkich strategii main page")
-        return pd.DataFrame()
+            print(f"[ERROR] przy odczytywaniu strategii dla main page: {e}")
+            return pd.DataFrame()
 
     def get_indicator_parameters(self, id_indicator: int) -> dict:
         """Pobiera parametry wejściowe (np. okres N=14) dla konkretnego instancji wskaźnika."""
@@ -191,23 +193,31 @@ class StrategiesRepository():
             print(f"{RED}[ERROR]{RESET} pobierania parametrów wskaźnika {id_indicator}: {e}")
         return {}
 
-# Przykład wywołania zapisu nowego SignalConfig w kodzie:
-# Jeśli chcesz dodać strategię RSI (id=1), która ma sprawdzać wskaźnik RSI (id=3) z logiką THRESHOLD (id=1, np. bariery 30 i 70):
-#
-# strategy_repo = StrategyRepository(db)
-# # Logika THRESHOLD
-# strategy_repo.add_signal_config(
-#     id_strategy=1,
-#     id_indicator=3,
-#     id_logic=1,
-#     threshold_low=30.0,
-#     threshold_high=70.0
-# )
-#
-# # Logika CROSSOVER (np. strategia 2, wskaźnik EMA 9 id=2 przecina SMA 20 id=1)
-# strategy_repo.add_signal_config(
-#     id_strategy=2,
-#     id_indicator=2,
-#     id_logic=2,
-#     target_indicator_id=1
-# )
+    def get_signal_config_details(self, id_strategy: int) -> pd.DataFrame:
+        """Pobiera sub-tabelę sygnałów dla strategii, zastępując ID czytelnymi nazwami."""
+        cont = self.db.connect()
+        query = """
+                SELECT '[' + c.[code] + '] ' + c.[name] AS [Wskaźnik], 
+                        CASE 
+                            WHEN tc.[code] IS NOT NULL THEN l.[type] + ' (' + tc.[code] + ')'
+                            ELSE l.[type]
+                END \
+                AS [Logika], 
+                        sc.thresholdLow AS [Próg Dolny], 
+                        sc.thresholdHigh AS [Próg Górny]
+                    FROM SignalConfig sc
+                    JOIN Indicator i ON sc.id_indicator = i.id_indicator
+                    JOIN [Code] c ON i.id_code = c.id_code
+                    JOIN Logic l ON sc.id_logic = l.id_logic
+                    LEFT JOIN Indicator ti ON sc.targetIndicatorId = ti.id_indicator
+                    LEFT JOIN [Code] tc ON ti.id_code = tc.id_code
+                    WHERE sc.id_strategy = ?
+                """
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                df = pd.read_sql(query, cont, params=[id_strategy])
+            return df
+        except Exception as e:
+            print(f"{RED}[ERROR]{RESET} pobierania szczegółów sygnałów: {e}")
+            return pd.DataFrame()

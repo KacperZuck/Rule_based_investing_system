@@ -73,24 +73,30 @@ class MarketRepository():
             print(f"{RED}[ERROR]{RESET} podczas sprawdzania ID instrumentu: {e}")
             return pd.DataFrame()
 
-    def get_instruments_main_page(self):
+    def get_instruments_main_page(self) -> pd.DataFrame:
         cont = self.db.connect()
-        cursor = cont.cursor()
-
-        query = """ SELECT i.id_instrument, i.ticker, i.[name], c.[high], c.[low], c.[close]
-            FROM Instrument i AND Candle c WHERE i.id_instrument = c.id_instrument
-            ORDER BY c.time_stamp TOP 1 ASC """
-
+        # OUTER APPLY pozwala na wyciągnięcie tylko 1 najświeższego rekordu (TOP 1) dla każdego instrumentu
+        query = """
+                SELECT i.id_instrument, \
+                       i.ticker, \
+                       i.[name], \
+                       c.[high], \
+                       c.[low], \
+                       c.[close]
+                FROM Instrument i
+                    OUTER APPLY (
+                    SELECT TOP 1 [high], [low], [close]
+                    FROM Candle
+                    WHERE id_instrument = i.id_instrument
+                    ORDER BY time_stamp DESC
+                    ) c
+                ORDER BY i.id_instrument ASC \
+                """
         try:
-            cursor.execute(query)
-            data = cursor.fetchall()
-
-            if not data:
-                print(f"{RED}[ERROR]{RESET}: blad przy pobieraniu danych dla main page")
-                return pd.DataFrame()
-
-            return {"id_instrument": data[0], "ticker": data[1], "name": data[2],
-                    "high": data[3], "low": data[4], "close": data[5]}
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                df = pd.read_sql(query, cont)
+            return df
         except Exception as e:
-            print(f"{RED}[ERROR]{RESET} podczas zapytania o pobranie instrumentow dla main page: {e}")
+            print(f"[ERROR] podczas zapytania o instrumenty dla main page: {e}")
             return pd.DataFrame()
