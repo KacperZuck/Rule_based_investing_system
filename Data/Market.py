@@ -4,7 +4,7 @@ import pandas as pd
 from streamlit import cursor
 import warnings
 
-from Database import *
+from Data.Database import *
 
 class MarketRepository():
     def __init__(self, db : Database):
@@ -73,3 +73,24 @@ class MarketRepository():
             print(f"{RED}[ERROR]{RESET} podczas sprawdzania ID instrumentu: {e}")
             return pd.DataFrame()
 
+    def get_instruments_main_page(self):
+        cont = self.db.connect()
+        cursor = cont.cursor()
+
+        query = """ SELECT i.id_instrument, i.ticker, i.[name], c.[high], c.[low], c.[close]
+            FROM Instrument i AND Candle c WHERE i.id_instrument = c.id_instrument
+            ORDER BY c.time_stamp TOP 1 ASC """
+
+        try:
+            cursor.execute(query)
+            data = cursor.fetchall()
+
+            if not data:
+                print(f"{RED}[ERROR]{RESET}: blad przy pobieraniu danych dla main page")
+                return pd.DataFrame()
+
+            return {"id_instrument": data[0], "ticker": data[1], "name": data[2],
+                    "high": data[3], "low": data[4], "close": data[5]}
+        except Exception as e:
+            print(f"{RED}[ERROR]{RESET} podczas zapytania o pobranie instrumentow dla main page: {e}")
+            return pd.DataFrame()

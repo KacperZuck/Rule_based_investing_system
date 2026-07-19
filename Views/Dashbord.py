@@ -5,93 +5,100 @@ from Logic.Managers.UserManager import UserManager
 from Logic.Plots import *
 from Data.Database import *
 from Data.Market import *
+
 Data_Range = 200
 Simulation_Range = 50
 
-st.set_page_config(page_title="RBIS", layout="wide")
+def render_dashbord():
+    ticker = st.session_state.selected_ticker
 
-# TODO __ INICJALIZACJA SESJI
+    if st.button("Powrót do głównego widoku"):
+        st.session_state.current_page = "MainPage"
+        st.session_state.selected_ticker = None
+        st.rerun()
 
-if 'db' not in st.session_state:
-    st.session_state.db = Database()
-    st.session_state.market_repo = MarketRepository(st.session_state.db)
+    st.title(f"Analiza {ticker}")
+    st.divider()
 
-if 'user_manager' not in st.session_state:
-    #TODO __ POZNIEJSZE PRZEPIECIE LOGIGI Z BAZY
-    default_config_path = "../Logic/Static/config.yaml"
-    # default_asset_path = "Data/HistoricValues/ndaq_us.csv"
-    ticker = "NDAQ"
+    #TODO ___ PRZEKLEJENIE KODU Z DASBOARD
+    if 'user_manager' not in st.session_state:
+        # TODO __ POZNIEJSZE PRZEPIECIE LOGIGI Z BAZY
+        default_config_path = "../Logic/Static/config.yaml"
+        # default_asset_path = "Data/HistoricValues/ndaq_us.csv"
+        # ticker = "NDAQ"
 
-    try:
-        #TODO __ DO PRZYSZLEJ POPRAWY __ NARAZIE ZMAPOWANE POD SIMULATION
-        market_repo = st.session_state.market_repo
-        full_df = market_repo.get_candles(ticker).tail(Data_Range)
+        try:
+            # TODO __ DO PRZYSZLEJ POPRAWY __ NARAZIE ZMAPOWANE POD SIMULATION
+            market_repo = st.session_state.market_repo
+            full_df = market_repo.get_candles(ticker).tail(Data_Range)
 
-        if full_df.empty:
-            st.error("pusty ticker")
+            if full_df.empty:
+                st.error("pusty ticker")
+                st.stop()
+
+            # full_df = pd.read_csv(default_asset_path, sep=None, engine='python').tail(Data_Range)
+
+            st.session_state.full_df = full_df
+            st.session_state.asset_data = full_df.head(Data_Range - Simulation_Range)
+            st.session_state.simulation_step = 0
+        except Exception as e:
+            st.error(f"Błąd ładowania danych z bazy: {e}")
             st.stop()
 
-        # full_df = pd.read_csv(default_asset_path, sep=None, engine='python').tail(Data_Range)
+        starting_user = UserManager(default_config_path, asset_data=st.session_state.asset_data)
+        starting_user.calculate_init(Data_Range)
 
-        st.session_state.full_df = full_df
-        st.session_state.asset_data = full_df.head(Data_Range-Simulation_Range)
-        st.session_state.simulation_step = 0
-    except Exception as e:
-        st.error(f"Błąd ładowania danych z bazy: {e}")
-        st.stop()
+        st.session_state.user_manager = starting_user
 
-    starting_user = UserManager(default_config_path, asset_data=st.session_state.asset_data)
-    starting_user.calculate_init(Data_Range)
-
-    st.session_state.user_manager = starting_user
-
-if 'simulation_running' not in st.session_state:
-    st.session_state.simulation_running = False
-
-# TODO __ PETLA
-selected_strat, time_speed = main_sidebar()
-
-if not st.session_state.simulation_running:
-    if st.sidebar.button("Uruchom symualcje", key="btn_start"):
-        st.session_state.simulation_running = True
-        st.rerun()
-else:
-    if st.sidebar.button("Zatrzymaj symulacje", key="btn_stop"):
+    if 'simulation_running' not in st.session_state:
         st.session_state.simulation_running = False
-        st.rerun()
 
-if selected_strat:
-    plotter = StrategyPlot(selected_strat, st.session_state.user_manager)
+    # TODO __ PETLA
+    selected_strat, time_speed = main_sidebar()
 
-    if st.session_state.simulation_running:
-        u_manager = st.session_state.user_manager
-        df = st.session_state.full_df
-
-        new_tick = Data_Range + st.session_state.simulation_step - Simulation_Range
-        print(f"df len __ {len(df)}")
-        print(f"New tick __ {new_tick}")
-
-        if new_tick < len(df):
-            for i in range(new_tick, Data_Range):
-                if not st.session_state.simulation_running:
-                    break
-
-                new_candle = df.iloc[[i]]
-                u_manager.calculate_new_candle(new_candle)
-                st.session_state.simulation_step += 1
-
-                plotter.create()
-                if time_speed > 0:
-                    time.sleep(time_speed)
+    if not st.session_state.simulation_running:
+        if st.sidebar.button("Uruchom symualcje", key="btn_start"):
+            st.session_state.simulation_running = True
+            st.rerun()
     else:
-        plotter.create()
+        if st.sidebar.button("Zatrzymaj symulacje", key="btn_stop"):
+            st.session_state.simulation_running = False
+            st.rerun()
 
-else:
-    st.warning("Brak wyboru strategii")
+    if selected_strat:
+        plotter = StrategyPlot(selected_strat, st.session_state.user_manager)
 
-st.write("### Debug Info")
-st.write(f"Liczba wskaźników: {len(st.session_state.user_manager.indicators)}")
-st.write(f"Dostępne strategie: {list(st.session_state.user_manager.strategies.keys())}")
+        if st.session_state.simulation_running:
+            u_manager = st.session_state.user_manager
+            df = st.session_state.full_df
+
+            new_tick = Data_Range + st.session_state.simulation_step - Simulation_Range
+            print(f"df len __ {len(df)}")
+            print(f"New tick __ {new_tick}")
+
+            if new_tick < len(df):
+                for i in range(new_tick, Data_Range):
+                    if not st.session_state.simulation_running:
+                        break
+
+                    new_candle = df.iloc[[i]]
+                    u_manager.calculate_new_candle(new_candle)
+                    st.session_state.simulation_step += 1
+
+                    plotter.create()
+                    if time_speed > 0:
+                        time.sleep(time_speed)
+        else:
+            plotter.create()
+
+    else:
+        st.warning("Brak wyboru strategii")
+
+    st.write("### Debug Info")
+    st.write(f"Liczba wskaźników: {len(st.session_state.user_manager.indicators)}")
+    st.write(f"Dostępne strategie: {list(st.session_state.user_manager.strategies.keys())}")
+
+    st.info("Wcześniejszy program")
 
 # --- DEBUG SECTION ---
 # with st.expander("🔍 System Debugger - Stan wskaźników i strategii"):

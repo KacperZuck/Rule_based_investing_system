@@ -16,8 +16,8 @@ class UserManager(Manager):
     def calculate_init(self,range):
 
         #TODO NARAZIE Z TAIL
-        df = pd.read_csv(self.asset).tail(range)
-        df = df.head(range-50)
+        # df = pd.read_csv(self.asset).tail(range)
+        df = self.asset.head(range-50)
         print(f"Wielkosc danych przed calc {len(df)}")
         self.calculate(df)
         self.calculate_signals(df)

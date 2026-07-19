@@ -1,6 +1,6 @@
 
 import pandas as pd
-from Database import *
+from Data.Database import *
 
 class UserRepository():
     def __init__(self, db : Database):

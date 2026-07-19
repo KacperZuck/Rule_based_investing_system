@@ -3,7 +3,7 @@ from idlelib import query
 import pandas as pd
 from uvicorn.main import print_version
 
-from Database import *
+from Data.Database import *
 from datetime import datetime
 
 class AssetsRepository():

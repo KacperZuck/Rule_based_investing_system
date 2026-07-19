@@ -3,7 +3,7 @@ import warnings
 import pandas as pd
 from streamlit import cursor
 
-from Database import *
+from Data.Database import *
 import pyodbc
 from datetime import datetime
 
@@ -135,6 +135,48 @@ class StrategiesRepository():
                 return data
         except Exception as e:
             print(f"{RED}[ERROR]{RESET} przy odczytywaniu wszystkich indykatorow")
+        return pd.DataFrame()
+
+    def get_indicators_main_page(self) -> pd.DataFrame:
+        cont = self.db.connect()
+        cursor = cont.cursor()
+        query = """SELECT c.[code], c.[name], s.[type]
+                   FROM Indicator i AND [Source] s WHERE i.id_source = s.id_source 
+                   AND [Code] c WHERE i.id_code = c.id_code
+                   ORDER BY id_indicator ASC """
+
+        try:
+            cursor.execute(query)
+            data = cursor.fetchone()
+
+            if not data:
+                print(f"{RED}[ERROR]{RESET}: Nie znaleziono danych")
+                return pd.DataFrame()
+            return {"code": data[0], "name": data[1], "type": data[2]}
+
+        except Exception as e:
+            print(f"{RED}[ERROR]{RESET} przy odczytywaniu wszystkich indykatorow")
+        return pd.DataFrame()
+
+    def get_strategies_main_page(self) -> pd.DataFrame:
+        cont = self.db.connect()
+        cursor = cont.cursor()
+
+        query = """ SELECT s.id_strategy, s.id_indicator,s.[name] s.threshold_low, s.threshold_high, COUNT(sig.id_strategy) AS signals
+            FROM Strategy s AND SignalConfig sig WHERE s.id_source = sig.id_source AND s.public = 1
+            ORDER BY s.id_strategy ASC
+        """
+        try:
+            cursor.execute(query)
+            data = cursor.fetchall()
+            if not data:
+                print(f"{RED}[ERROR]{RESET}: Nie znaleziono danych dla strategi")
+                return pd.DataFrame()
+            return {"id_strategy": data[0], "id_indicator": data[1], "name": data[2],
+                    "threshold_low": data[3], "threshold_high": data[4], "signals": data[5]}
+
+        except Exception as e:
+            print(f"{RED}[ERROR]{RESET} przy odczytywaniu wszystkich strategii main page")
         return pd.DataFrame()
 
     def get_indicator_parameters(self, id_indicator: int) -> dict:
