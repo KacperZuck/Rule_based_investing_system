@@ -38,6 +38,23 @@ class MarketRepository():
             return pd.DataFrame()
 
 
+    def get_all_instruments(self) -> pd.DataFrame:
+
+        cont = self.db.connect()
+        query = ("SELECT id_instrument, ticker, [name] FROM Instrument ORDER BY id_instrument ASC")
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore")
+                data = pd.read_sql(query, cont)
+
+            if not data.empty:
+                return data
+
+        except Exception as e:
+            print(f"{RED}[ERROR]{RESET} blad podczas odpytywania o instrumenty: {e}")
+        return pd.DataFrame()
+
     def get_instrument(self, ticker: str) -> pd.DataFrame:
 
         cont = self.db.connect()

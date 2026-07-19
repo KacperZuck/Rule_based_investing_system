@@ -125,7 +125,7 @@ class StrategiesRepository():
 
     def get_all_indicators(self):
         cont = self.db.connect()
-        query = """SELECT * FROM Indicator ORDER BY id_indicator ASC    """
+        query = """SELECT * FROM Indicator ORDER BY id_indicator ASC """
 
         try:
             with warnings.catch_warnings():
@@ -135,7 +135,6 @@ class StrategiesRepository():
                 return data
         except Exception as e:
             print(f"{RED}[ERROR]{RESET} przy odczytywaniu wszystkich indykatorow")
-
         return pd.DataFrame()
 
     def get_indicator_parameters(self, id_indicator: int) -> dict:

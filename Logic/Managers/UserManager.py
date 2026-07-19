@@ -7,10 +7,10 @@ from Logic.Managers.Manager import Manager
 
 
 class UserManager(Manager):
-    def __init__(self, config_path, asset_path):
+    def __init__(self, config_path, asset_data: pd.DataFrame = None):
         super().__init__(config_path)
         self.user_id = "admin"
-        self.asset = asset_path
+        self.asset = asset_data
         #self.path_save = save_path
 
     def calculate_init(self,range):

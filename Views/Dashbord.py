@@ -2,28 +2,45 @@ import streamlit as st
 import pandas as pd
 import time
 from Logic.Managers.UserManager import UserManager
-from Logic.SideBar import *
 from Logic.Plots import *
-
+from Data.Database import *
+from Data.Market import *
 Data_Range = 200
 Simulation_Range = 50
 
 st.set_page_config(page_title="RBIS", layout="wide")
+
 # TODO __ INICJALIZACJA SESJI
+
+if 'db' not in st.session_state:
+    st.session_state.db = Database()
+    st.session_state.market_repo = MarketRepository(st.session_state.db)
+
 if 'user_manager' not in st.session_state:
-    default_config_path = "Logic/Static/config.yaml"
-    default_asset_path = "Data/HistoricValues/ndaq_us.csv"
+    #TODO __ POZNIEJSZE PRZEPIECIE LOGIGI Z BAZY
+    default_config_path = "../Logic/Static/config.yaml"
+    # default_asset_path = "Data/HistoricValues/ndaq_us.csv"
+    ticker = "NDAQ"
 
     try:
         #TODO __ DO PRZYSZLEJ POPRAWY __ NARAZIE ZMAPOWANE POD SIMULATION
-        full_df = pd.read_csv(default_asset_path, sep=None, engine='python').tail(Data_Range)
+        market_repo = st.session_state.market_repo
+        full_df = market_repo.get_candles(ticker).tail(Data_Range)
+
+        if full_df.empty:
+            st.error("pusty ticker")
+            st.stop()
+
+        # full_df = pd.read_csv(default_asset_path, sep=None, engine='python').tail(Data_Range)
+
+        st.session_state.full_df = full_df
         st.session_state.asset_data = full_df.head(Data_Range-Simulation_Range)
         st.session_state.simulation_step = 0
     except Exception as e:
-        st.error(f"Błąd ładowania danych CSV: {e}")
+        st.error(f"Błąd ładowania danych z bazy: {e}")
         st.stop()
 
-    starting_user = UserManager(default_config_path, default_asset_path)
+    starting_user = UserManager(default_config_path, asset_data=st.session_state.asset_data)
     starting_user.calculate_init(Data_Range)
 
     st.session_state.user_manager = starting_user
@@ -48,22 +65,24 @@ if selected_strat:
 
     if st.session_state.simulation_running:
         u_manager = st.session_state.user_manager
-        df = pd.read_csv("Data/HistoricValues/ndaq_us.csv").tail(Data_Range)
+        df = st.session_state.full_df
 
         new_tick = Data_Range + st.session_state.simulation_step - Simulation_Range
         print(f"df len __ {len(df)}")
         print(f"New tick __ {new_tick}")
 
-        for i in range(new_tick, Data_Range):
-            if not st.session_state.simulation_running:
-                break;
-            new_candle = df.iloc[[i]]
-            u_manager.calculate_new_candle(new_candle)
-            st.session_state.simulation_step += 1
-            # plotter = StrategyPlot(selected_strat, u_manager)
-            plotter.create()
-            if time_speed > 0:
-                time.sleep(time_speed)
+        if new_tick < len(df):
+            for i in range(new_tick, Data_Range):
+                if not st.session_state.simulation_running:
+                    break
+
+                new_candle = df.iloc[[i]]
+                u_manager.calculate_new_candle(new_candle)
+                st.session_state.simulation_step += 1
+
+                plotter.create()
+                if time_speed > 0:
+                    time.sleep(time_speed)
     else:
         plotter.create()
 

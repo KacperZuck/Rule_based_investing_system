@@ -10,6 +10,7 @@ class AssetsRepository():
     def __init__(self, db: Database):
         self.db = db
 
+
     def get_assets(self, id_user:int, id_instrument:int, id_strategy:int): ## TODO JESCZE DODAC NAME DLA INSTRUMENTU ABY NIE BYLO SAMYCH ID, CHYBA ZE PODZIELIC TO NA OSOBNE ZAPYTANIA ???
         cont = self.db.connect()
 

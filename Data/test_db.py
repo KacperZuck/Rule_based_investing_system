@@ -75,6 +75,12 @@ def run_integration_tests():
     else:
         print(f"{RED}[FAIL]{RESET} Zwrócono pusty DataFrame dla NDAQ")
 
+    all_inst = market_repo.get_all_instruments()
+    if not all_inst.empty:
+        print(f"{GREEN}[OK]{RESET} Pobrano wszystkie instrumenty z bazy: {all_inst}")
+    else:
+        print(f"{RED}[FAIL]{RESET} blad w odpytywaniu o instrumenty")
+
     # -------------------------------------------------------------------------
     # TEST 2: Rejestracja i logowanie użytkownika (UserRepository)
     # -------------------------------------------------------------------------
@@ -163,6 +169,7 @@ def run_integration_tests():
         print(f"{GREEN}[OK]{RESET} Pobrano parametry dla wszystkich wskaźnikow: {indic}")
     else:
         print(f"{RED}[FAIL]{RESET} blad w dodawaniu strategi")
+
 
     # -------------------------------------------------------------------------
     # TEST 4: Alokacja budżetu i handel wewnątrz-budżetowy (AssetRepository)
