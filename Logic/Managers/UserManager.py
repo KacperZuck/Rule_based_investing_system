@@ -7,11 +7,22 @@ from Logic.Managers.Manager import Manager
 
 
 class UserManager(Manager):
-    def __init__(self, config_path, asset_data: pd.DataFrame = None):
-        super().__init__(config_path)
-        self.user_id = "admin"
-        self.asset = asset_data
-        #self.path_save = save_path
+    def __init__(self, strategy_repo, asset_data: pd.DataFrame = None, ticker: str = None):
+        # super().__init__(config_path)
+        # self.user_id = "admin"
+        self.df = asset_data
+        self.ticker = ticker
+        self.strategy_repo = strategy_repo
+
+        self.strategies = {}
+        self.indicators = {}
+        self.config_db = {}
+
+    def load_config(self):
+
+        df_strategies = self.strategy_repo.get_strategies()
+
+        #TODO __ wybranie tych public oraz już zapisanych z id użytkownka
 
     def calculate_init(self,range):
 

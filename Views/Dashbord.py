@@ -22,33 +22,35 @@ def render_dashbord():
 
     #TODO ___ PRZEKLEJENIE KODU Z DASBOARD
     if 'user_manager' not in st.session_state:
-        # TODO __ POZNIEJSZE PRZEPIECIE LOGIGI Z BAZY
-        default_config_path = "../Logic/Static/config.yaml"
-        # default_asset_path = "Data/HistoricValues/ndaq_us.csv"
-        # ticker = "NDAQ"
 
-        try:
-            # TODO __ DO PRZYSZLEJ POPRAWY __ NARAZIE ZMAPOWANE POD SIMULATION
-            market_repo = st.session_state.market_repo
-            full_df = market_repo.get_candles(ticker).tail(Data_Range)
+       _user = UserManager(
+           strategy_repo = st.session_state.strategy_repo,
+           asset_data = st.session_state.asset_data,
+           ticker = st.session_state.selected_ticker
+       )
 
-            if full_df.empty:
-                st.error("pusty ticker")
-                st.stop()
+        # try:
+        #     # TODO __ DO PRZYSZLEJ POPRAWY __ NARAZIE ZMAPOWANE POD SIMULATION
+        #     market_repo = st.session_state.market_repo
+        #     full_df = market_repo.get_candles(ticker).tail(Data_Range)
+        #
+        #     if full_df.empty:
+        #         st.error("pusty ticker")
+        #         st.stop()
+        #
+        #     # full_df = pd.read_csv(default_asset_path, sep=None, engine='python').tail(Data_Range)
+        #
+        #     st.session_state.full_df = full_df
+        #     st.session_state.asset_data = full_df.head(Data_Range - Simulation_Range)
+        #     st.session_state.simulation_step = 0
+        # except Exception as e:
+        #     st.error(f"Błąd ładowania danych z bazy: {e}")
+        #     st.stop()
+        #
+        # starting_user = UserManager(default_config_path, asset_data=st.session_state.asset_data)
+        # starting_user.calculate_init(Data_Range)
 
-            # full_df = pd.read_csv(default_asset_path, sep=None, engine='python').tail(Data_Range)
-
-            st.session_state.full_df = full_df
-            st.session_state.asset_data = full_df.head(Data_Range - Simulation_Range)
-            st.session_state.simulation_step = 0
-        except Exception as e:
-            st.error(f"Błąd ładowania danych z bazy: {e}")
-            st.stop()
-
-        starting_user = UserManager(default_config_path, asset_data=st.session_state.asset_data)
-        starting_user.calculate_init(Data_Range)
-
-        st.session_state.user_manager = starting_user
+    st.session_state.user_manager = _user #starting_user
 
     if 'simulation_running' not in st.session_state:
         st.session_state.simulation_running = False
